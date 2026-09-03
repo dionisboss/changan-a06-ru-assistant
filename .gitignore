@@ -1,0 +1,20 @@
+# build artifacts
+/out/
+stand/work/
+stand/asr-android/build/
+**/*.dex
+**/*.apk
+**/*.apk.idsig
+
+# the proprietary stock input (supply your own, never commit)
+SpeechAssistant.orig.apk
+SpeechAssistant*.apk
+
+# large model weights (> GitHub's 100 MB/file limit) — see MODELS.md.
+# They stay on disk so the local build works; they are just not tracked by git.
+stand/asr-android/gigaam/model.int8.onnx
+tools/tera-tts-java/assets/models/sampler_distilled_cfg3_4step.onnx
+
+# os / editor
+.DS_Store
+*.swp

@@ -1,0 +1,23 @@
+Russian Voice Assistant modification for Changan A06 (C390) — version 1.0.2
+Copyright (c) 2026 Tecrow. All rights reserved.
+Author: Voronov Aleksei Sergeevich.
+This modification is distributed free of charge.
+
+LICENSE: PolyForm Noncommercial License 1.0.0.
+  https://polyformproject.org/licenses/noncommercial/1.0.0
+  NONCOMMERCIAL USE ONLY. COMMERCIAL USE IS NOT PERMITTED.
+
+Reverse engineering, decompilation, and disassembly of this modification are
+NOT permitted under this license, except to the minimum extent that applicable
+mandatory law expressly allows (e.g. interoperability where the law permits).
+This is a license restriction. The build is protected by copyright; unauthorized
+redistribution is prohibited.
+
+This is an INDEPENDENT modification. It is NOT affiliated with, endorsed by, or
+produced by Changan Automobile, and builds upon proprietary components owned by
+their respective rights holders, which remain under their own terms.
+
+NO WARRANTY. Use at your own risk. Voice control of a vehicle can fail or
+misrecognize commands; the copyright holder is not liable for any resulting harm.
+
+For a commercial license, contact the copyright holder.
