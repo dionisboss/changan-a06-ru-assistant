@@ -67,6 +67,15 @@ adb shell am force-stop com.incall.apps.speechassistant
 
 Wake with **«нихао» (你好)** and speak, e.g. «включи климат», «какая погода в шанхае».
 
+## Tests
+
+The `ru2zh` command mapper has offline unit tests (no car, no models, just a JDK) — 640+ phrase→intent
+cases plus a set of chatter that must *not* trigger a command:
+
+```sh
+sh ru2zh/translate-task/tests/run_tests.sh   # -> PASS=684 FAIL=0
+```
+
 ## Uninstall / revert to factory
 
 ```sh

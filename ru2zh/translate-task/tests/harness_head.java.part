@@ -1,0 +1,102 @@
+
+import java.util.*;
+import java.nio.file.*;
+
+public class Ru2Zh {
+    static class Log {
+        static void w(String t, String m) {}
+        static void e(String t, String m) {}
+        static void i(String t, String m) {}
+    }
+    static final String TAG = "test";
+    static final int TYPE_FEEDBACK = 1;
+    static int wakeZone = 1;
+    static void showOnScreen(String a, int b) {}
+    static String zoneCode(int z) { return "DRIVER"; }
+
+    // ---- helpers copied from current_ru2zh_reference.java (VoskBridge) ----
+    static String gradeOf(String s) {
+        if (s.contains("максим") || s.contains("на всю") || s.contains("полностью")) return "MAX";
+        if (s.contains("миним")) return "MIN";
+        if (s.contains("тепл") || s.contains("больш") || s.contains("выше") || s.contains("прибав")
+            || s.contains("громч") || s.contains("ярче") || s.contains("сильн")) return "PLUS";
+        if (s.contains("холод") || s.contains("мень") || s.contains("ниже") || s.contains("убав")
+            || s.contains("тише") || s.contains("темнее") || s.contains("слаб")) return "MINUS";
+        return "";
+    }
+    static boolean isOn(String s) {
+        return s.contains("включ") || s.contains("откр") || s.contains("подним") || s.contains("запус")
+            || s.contains("вклчю") || s.contains("вкл ");
+    }
+    static boolean isOff(String s) {
+        return s.contains("выключ") || s.contains("отключ") || s.contains("выруб") || s.contains("закр")
+            || s.contains("опусти") || s.contains("останов") || s.contains("выкл ");
+    }
+    static String colorOf(String s) {
+        if (s.contains("красн")) return "RED";
+        if (s.contains("син") || s.contains("голуб")) return "BLUE";
+        if (s.contains("зелен")) return "GREEN";
+        if (s.contains("бел")) return "WHITE";
+        if (s.contains("желт")) return "YELLOW";
+        if (s.contains("фиолет") || s.contains("пурпур")) return "PURPLE";
+        if (s.contains("оранж")) return "ORANGE";
+        if (s.contains("розов")) return "PINK";
+        return "";
+    }
+    static String zhColor(String c) {
+        if ("RED".equals(c)) return "红色";
+        if ("BLUE".equals(c)) return "蓝色";
+        if ("GREEN".equals(c)) return "绿色";
+        if ("WHITE".equals(c)) return "白色";
+        if ("YELLOW".equals(c)) return "黄色";
+        if ("PURPLE".equals(c)) return "紫色";
+        if ("ORANGE".equals(c)) return "橙色";
+        if ("PINK".equals(c)) return "粉色";
+        return "";
+    }
+    /** digits or Russian numerals ("двадцать три" -> 23, "полтора" -> -1). */
+    static int numIn(String s) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\d+").matcher(s);
+        while (m.find()) { if (m.group().length() <= 4) return Integer.parseInt(m.group()); }
+        String[] w = s.split("[^а-я]+");
+        int total = -1;
+        for (String t : w) {
+            int v = -1;
+            if (t.startsWith("ноль")) v = 0;
+            else if (t.startsWith("одиннадцат")) v = 11;
+            else if (t.startsWith("двенадцат")) v = 12;
+            else if (t.startsWith("тринадцат")) v = 13;
+            else if (t.startsWith("четырнадцат")) v = 14;
+            else if (t.startsWith("пятнадцат")) v = 15;
+            else if (t.startsWith("шестнадцат")) v = 16;
+            else if (t.startsWith("семнадцат")) v = 17;
+            else if (t.startsWith("восемнадцат")) v = 18;
+            else if (t.startsWith("девятнадцат")) v = 19;
+            else if (t.startsWith("двадцат")) v = 20;
+            else if (t.startsWith("тридцат")) v = 30;
+            else if (t.startsWith("сорок")) v = 40;
+            else if (t.startsWith("пятьдесят") || t.startsWith("пятидесят")) v = 50;
+            else if (t.startsWith("шестьдесят")) v = 60;
+            else if (t.startsWith("семьдесят")) v = 70;
+            else if (t.startsWith("восемьдесят")) v = 80;
+            else if (t.startsWith("девяност")) v = 90;
+            else if (t.startsWith("сто") || t.startsWith("ста")) v = 100;
+            else if (t.equals("один") || t.equals("одна") || t.equals("одну")) v = 1;
+            else if (t.equals("два") || t.equals("две")) v = 2;
+            else if (t.equals("три")) v = 3;
+            else if (t.startsWith("четыре")) v = 4;
+            else if (t.equals("пять")) v = 5;
+            else if (t.equals("шесть")) v = 6;
+            else if (t.equals("семь")) v = 7;
+            else if (t.startsWith("восемь") || t.equals("восемь")) v = 8;
+            else if (t.startsWith("девять")) v = 9;
+            else if (t.startsWith("десять")) v = 10;
+            if (v >= 0) {
+                if (total < 0) total = v;
+                else if (total % 10 == 0 && v < 10) total += v;
+                else total = v;
+            }
+        }
+        return total;
+    }
+
