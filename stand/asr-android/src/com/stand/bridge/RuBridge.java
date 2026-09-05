@@ -11,7 +11,7 @@
  * compiled result are protected by copyright; unauthorized redistribution is prohibited.
  * Independent mod — NOT affiliated with or endorsed by Changan Automobile. See LICENSE.
  */
-package com.stand.vosk;
+package com.stand.bridge;
 
 import android.content.Context;
 import android.content.Intent;
@@ -22,15 +22,17 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.json.JSONObject;
+// ru2zh mapper + shared phrase helpers (zoneOf/zoneCode/gradeOf/isOn/isOff/numIn/colorOf) live in Ru2Zh.
+import static com.stand.bridge.Ru2Zh.*;
 
 /**
  * In-process offline Russian ASR tap for SpeechAssistant.
  * Hooked into SrBaseSession's processed-audio callback (onMSDataProc): the same
- * AEC/beamformed PCM the native iFlytek ASR consumes is streamed into Vosk.
+ * AEC/beamformed PCM the native iFlytek ASR consumes is streamed into our Russian recognizer (GigaAM).
  * Triggered automatically by the native wake (knob), no separate mic/AudioRecord.
  */
-public final class VoskBridge {
-    private static final String TAG = "VoskBridge";
+public final class RuBridge {
+    private static final String TAG = "RuBridge";
 
     /**
      * LICENSE / LEGAL NOTICE (kept as a runtime string so it survives compilation into the APK and
@@ -40,10 +42,10 @@ public final class VoskBridge {
      * license (except where mandatory law expressly allows). Independent mod — NOT affiliated with,
      * endorsed by, or produced by Changan Automobile. Full terms: assets/NOTICE.txt and LICENSE.
      */
-    public static final String MOD_VERSION = "1.0.2";
+    public static final String MOD_VERSION = "1.0.3";
     public static final String NOTICE =
         "Copyright (c) 2026 Tecrow. Author: Voronov Aleksei Sergeevich. "
-      + "Russian Voice Assistant mod for Changan A06 (C390) v1.0.2. "
+      + "Russian Voice Assistant mod for Changan A06 (C390) v1.0.3. "
       + "Licensed under PolyForm Noncommercial 1.0.0 — NONCOMMERCIAL USE ONLY, COMMERCIAL USE PROHIBITED. "
       + "Reverse engineering, decompilation and disassembly are PROHIBITED by this license. "
       + "Independent modification, NOT affiliated with or endorsed by Changan Automobile.";
@@ -102,14 +104,14 @@ public final class VoskBridge {
      *  engine. Only set when empty — never clobber a word the user chose. App is uid=system → allowed. */
     static void ensureCustomWakeword() {
         try {
-            // Apply the «你好» default ONCE (first run after install), then respect the user's choice —
-            // a marker in our prefs guards it so we never clobber a word the user later sets in Settings.
+            // Default custom wake word «你好你好» (nǐ hǎo nǐ hǎo = «нихао нихао») — easiest for RU speakers.
+            // Applied ONCE via a fresh marker (so it runs on this build), then the user's choice is kept.
             android.content.SharedPreferences sp = appCtx.getSharedPreferences("stand", 0);
-            if (sp.getBoolean("wakeword_defaulted", false)) return;
+            if (sp.getBoolean("wakeword_nihao2", false)) return;
             android.content.ContentResolver cr = appCtx.getContentResolver();
-            boolean ok = android.provider.Settings.Global.putString(cr, "voice_custom_name", "你好"); // 你好
-            sp.edit().putBoolean("wakeword_defaulted", true).apply();
-            Log.i(TAG, "wakeword: default «你好» applied once (" + ok + ")");
+            boolean ok = android.provider.Settings.Global.putString(cr, "voice_custom_name", "你好你好"); // «нихао нихао»
+            sp.edit().putBoolean("wakeword_nihao2", true).apply();
+            Log.i(TAG, "wakeword: default «你好你好» (нихао нихао) applied once (" + ok + ")");
         } catch (Throwable t) { Log.e(TAG, "ensureCustomWakeword", t); }
     }
 
@@ -224,13 +226,15 @@ public final class VoskBridge {
     private static volatile int wakeZone = 1;        // detected speaking zone (SrBaseSession.getCurrentDirect: 1=driver,2=passenger,3/4=rear,5=rear-mid)
     // Force offline: online chat backend isn't ready, so unrecognized phrases give a local RU reply
     // instead of hitting the cloud. Flip to false once the LLM backend is live.
-    private static final boolean OFFLINE_ONLY = true;   // RELEASE: forced offline-only (no cloud/chat; no personal backend)
+    private static final boolean OFFLINE_ONLY = false;  // ONLINE: free-form chat/knowledge → our backend (sda.tecrow.org)
 
     // Online conversational path via the NATIVE (device-signed) Dubhe cloud + MyMemory translation:
     // a free-form phrase the rule-based ru2zh can't map is translated RU->ZH (MyMemory) and injected
     // into the stock NLU, which consults the real Changan cloud; the Chinese answer is turned back to
     // Russian on the way out. Independent of OFFLINE_ONLY (that only gates the dead 127.0.0.1 backend).
-    private static final boolean CLOUD_MT = true;
+    // Our backend answers in Russian and understands Russian, so no MyMemory RU<->ZH is needed on the
+    // server path. ru2zh still maps COMMANDS to Chinese for the stock LOCAL NLU (injectZh) — that stays.
+    private static final boolean CLOUD_MT = false;
 
     // Consult the real Changan Dubhe cloud in parallel with the local NLU on every injected Chinese
     // query (see injectZh): cloud carControl executes and the Chinese answer (dmResults.tts) returns.
@@ -368,7 +372,7 @@ public final class VoskBridge {
         // народные формулировки (обдув в рот, продув пердака и родня)
         "рот","морду","морда","харю","пердак","пердака","жопу","жопы","жопа","булки","булок",
         "пятую","пятой","точки","дубак","колотун","холодрыга","сауна","пекло","духота","бане",
-        // ---- слова из tests.tsv, недостававшие после переезда словаря в VoskBridge (2026-09-03) ----
+        // ---- слова из tests.tsv, недостававшие после переезда словаря в RuBridge (2026-09-03) ----
         "автоматические","автомобиле","амбиентную","аудиокнигу","бензобак","быстро","веди","вокзала","врубай","вспотел",
         "вызови","говори","деактивируй","дистанция","для","дует","дхо","едь","жару","жесткая",
         "заглуши","задний","заедем","зажги","запарился","заряди","зарядке","зафиксируй","звякни","избранные",
@@ -449,13 +453,17 @@ public final class VoskBridge {
         // SAFETY: negation/question («не закрывай окно», «как работает…») -> whole phrase to chat,
         // don't let fuzzyFix strip the «не» and turn it into a command.
         if (isGuarded(text.toLowerCase().replace('ё', 'е'))) return text;
-        if (ru2zh(text) != null) return text;                          // understood as-is
+        if (ru2zh(text, wakeZone) != null) return text;                          // understood as-is
         String fx = fuzzyFix(text);
-        if (!fx.equals(text) && ru2zh(fx) != null) return fx;          // fuzzy rescue
+        if (!fx.equals(text) && ru2zh(fx, wakeZone) != null) return fx;          // fuzzy rescue
         return fuzzyFix(text);
     }
 
     public static void init(final Context ctx) {
+        Ru2Zh.onUnsafeBlocked = new Ru2Zh.UnsafeListener() { public void blocked(String zh) {
+            Log.w(TAG, "ru2zh: UNSAFE blocked (ALLOW_UNSAFE=false): " + zh);
+            showOnScreen("Команда требует подтверждения", TYPE_FEEDBACK);
+        }};
         appCtx = ctx.getApplicationContext();
         Log.i(TAG, NOTICE);   // emit legal notice (also anchors the string into the dex)
         try { if (!com.stand.core.Guard.verify()) Log.w(TAG, com.stand.core.Guard.LICENSE); } catch (Throwable ignored) {}
@@ -472,7 +480,8 @@ public final class VoskBridge {
         if (mainProc) {
             try { com.stand.asr.GigaAsr.init(appCtx); } catch (Throwable t) { Log.e(TAG, "gigaam init", t); }
             new Thread(new Runnable() { public void run() {
-                try {   // prime backend dicts + status
+                try {   // prime backend dicts + status + installed-apps cache (off the request hot path)
+                    userAppPackages();   // warm the app allowlist now (~seconds) so requests don't pay it
                     try { Thread.sleep(4000); } catch (Throwable ignored) {}
                     pushDicts();
                     pushStatus();
@@ -501,7 +510,10 @@ public final class VoskBridge {
                 if (query != null && !query.isEmpty()) {
                     lastText = query;   // so swap()/CloudNlu surface our RU text, never the native Chinese
                     Log.i(TAG, "RU ASR final (zone " + wakeZone + "): " + query);
-                    showOnScreen(cap(query), TYPE_NLP);
+                    // NO own on-screen echo here: the stock SR path already displays the recognized
+                    // phrase (its PgsBean text is swapped to lastText). A second echo (TYPE_NLP,
+                    // capitalized) rendered alongside the stock TYPE_PGS one and the widget's scroll
+                    // visually merged them into a doubled prefix ("Вквключи музыку"). One source only.
                     handlePhraseZh(query); // ru2zh → stock NLU pipeline
                 }
             }
@@ -509,6 +521,21 @@ public final class VoskBridge {
     }
 
     /** Speak text via the assistant's TTS engine. */
+    /** Test hook (StandNluReceiver sayb64): push text through the stock TTS route. */
+    public static void speakTest(String text) { speak(text); }
+
+    /** Test hook (StandNluReceiver keywake): simulate the steering-wheel key wake exactly as the car does
+     *  (verified in the car log: "keycode == 231 com.incall.action.KEY_CLICK" -> BusinessController.
+     *  changeWakeupToLeft(10) -> playWakeUpTips type=10). Main process only. */
+    public static void keyWakeTest() {
+        if (!isMainProcess()) return;
+        try {
+            Class<?> bc = Class.forName("com.incall.apps.speechassistant.controller.BusinessController");
+            Object inst = bc.getMethod("getInstance").invoke(null);
+            bc.getMethod("changeWakeupToLeft", int.class).invoke(inst, 10);
+        } catch (Throwable t) { Log.e(TAG, "keyWakeTest", t); }
+    }
+
     private static void speak(String text) {
         try {
             Class<?> tc = Class.forName("com.changan.speech.tts.GlobalTtsClient");
@@ -549,14 +576,150 @@ public final class VoskBridge {
     private static boolean hasCJK(String s) { for (int i=0;i<s.length();i++){char c=s.charAt(i); if(c>=0x4E00&&c<=0x9FFF) return true;} return false; }
     private static boolean hasCyrillic(String s) { for (int i=0;i<s.length();i++){char c=s.charAt(i); if(c>=0x0400&&c<=0x04FF) return true;} return false; }
 
+    /** A TTS request our engine must IGNORE: Chinese to be spoken (CJK present, no Cyrillic). By owner's
+     *  request our TTS never voices Chinese — a pure-CJK stock NLG reply is dropped silently rather than
+     *  translated+voiced. Mixed Russian+CJK still speaks (the Russian part; CJK cleaned inline). */
+    public static boolean isChineseSpeech(String s) {
+        return s != null && hasCJK(s) && !hasCyrillic(s);
+    }
+
+    /** Marker text the patched TipsManager.getWakeUpTipsFromClick returns on a steering-key/knob wake
+     *  (build_sa WAKE_CHIME). Exact match only — PiperCaTts plays the wake chime for it instead of speech.
+     *  Voice wake tips (我在/在呢/…) map to «Чем могу помочь» and are still spoken. */
+    public static final String CLICK_WAKE_MARKER = "Слушаю";
+
+    /** The VOICE wake greeting as it reaches the TTS engine («Чем могу помочь», «Пассажир, чем могу помочь»);
+     *  PiperCaTts mixes the wake chime into it (spoken greeting + chime in parallel). */
+    public static boolean isWakeGreeting(String ru) {
+        if (ru == null) return false;
+        String s = ru.toLowerCase().replaceAll("[^a-zа-яё ]", " ").replaceAll("\\s+", " ").trim();
+        return s.endsWith("чем могу помочь");
+    }
+    public static boolean isClickWakeMarker(String ru) {
+        if (ru == null) return false;
+        String s = ru.toLowerCase().replaceAll("[^a-zа-яё ]", " ").replaceAll("\\s+", " ").trim();
+        return s.equals(CLICK_WAKE_MARKER.toLowerCase());
+    }
+
     /** Text → Russian for the native TTS engine (PiperCaTts). Strips prosody tags ([se55], [w0]);
      *  MIXED overlay text (mostly Russian with a stray Chinese word like «громкость 语音 уменьшена»)
      *  keeps the Russian and cleans the CJK inline; a PURE Chinese tip goes through zh2ru; latin/digits
      *  pass as-is. Returns null only when nothing speakable remains. */
+    // Failed-local-command → LLM fallback. When ru2zh maps a phrase to a Chinese command the native NLU
+    // can't handle, the intent comes back 'unknown', the DM falls to the (cut) cloud, and the NLG is a
+    // "network error" — heard as a moo. We detect that NLG, suppress it, and re-send the ORIGINAL Russian
+    // to our backend with a localCommandFailed marker (owner collects these to adapt ru2zh/the backend).
+    private static volatile String lastLocalRu;   // original Russian query behind the last injected command
+    private static volatile String lastLocalZh;   // the Chinese command we injected (ru2zh OR a backend zhCommand)
+    private static volatile long lastLocalTs;
+    private static volatile int lastLocalAttempt; // which try this injection was (1 = first)
+    // Bounded retry: on failure the LLM gets ONE chance to reformulate the Chinese command; if the 2nd
+    // try also fails, answer gracefully + collect — never loop. Backend gates on localAttempt; the device
+    // hard-caps too. MAX = 2 injection attempts (first guess + one LLM correction).
+    private static final int MAX_LOCAL_ATTEMPTS = 2;
+
+    /** Record an injected command (try #attempt) so we can recover if the native NLU can't execute it. */
+    static void noteInjected(String ru, String zh, int attempt) {
+        lastLocalRu = (ru == null ? "" : ru); lastLocalZh = (zh == null ? "" : zh);
+        lastLocalAttempt = attempt; lastLocalTs = System.currentTimeMillis();
+    }
+
+    /** Native NLG signalling the injected command was NOT understood (unknown intent → dead-cloud fallback).
+     *  On this build the native cloud is cut, so this NLG == a failed local command. */
+    private static boolean isLocalFailNlg(String s) {
+        return s != null && (s.contains("网络异常") || s.contains("请检查网络") || s.contains("请求超时")
+            || s.contains("我没听懂") || s.contains("没有听懂") || s.contains("不明白你的意思"));
+    }
+
+    // The firmware's OWN "not supported" reply pool: string-array resources not_support[] /
+    // general_notsupport[] / general_result_notsupport[] (6 shared texts). Extracted from the speechadapter
+    // string table (nontoxic/jadx_out/.../strings/com.incall.apps.speechadapter.json) by RESOURCE KEY — not
+    // guessed. The DM picks one of these when a RECOGNIZED intent can't be performed on this car (e.g.
+    // REPAIR_WIPER dispatched to CarControlAction but no wiper-service unit → no actuation). That is NOT
+    // domain=unknown, so checkArbResult misses it; exact membership here catches it. Deliberately NOT in
+    // this pool: specific replies with a reason (*_cannot_* "уже максимальная температура", *_not_support
+    // "сзади не настроить") — those are understood commands with an honest boundary answer, not a gap.
+    // Regenerate with the python snippet in the session notes if the overlay changes.
+    private static final String[] NOT_SUPPORT_ZH = {
+        "哎呀，你说的这个有点挑战性，让我再学习一下",
+        "感谢你让我发现新大陆，这就去探索学习",
+        "现在还在赶工中，再给我一点时间吧",
+        "被你发现我不会这个了，马上就学",
+        "被你发现我的技能缺口啦，这就去学习升级",
+        "这个我还做不到，让我再提升一下"
+    };
+    private static final String[] NOT_SUPPORT_RU = {
+        "Вы заметили, что я этого не умею. Сейчас научусь",
+        "Вы нашли пробел в моих навыках — сейчас же подучусь",
+        "Ох, это непростая задача — дайте мне ещё подучиться",
+        "Пока я так не умею, мне нужно ещё подрасти",
+        "Спасибо, вы открыли мне новое — иду изучать",
+        "Я ещё над этим работаю, дайте мне немного времени"
+    };
+    /** Strip prosody tags ([se55]) and trailing punctuation/space so a pool entry matches exactly. */
+    private static String normReply(String s) {
+        return s.replaceAll("\\[[^\\]]*\\]", "").trim().replaceAll("[\\s.。!！?？~]+$", "").trim();
+    }
+    /** True iff the NLG is one of the firmware's generic "not supported / I'll learn" replies (ZH or the
+     *  overlay RU) — i.e. a recognized command this car couldn't perform. Recency-guarded downstream. */
+    private static boolean isNotSupportReply(String s) {
+        if (s == null) return false;
+        String n = normReply(s);
+        if (n.isEmpty()) return false;
+        for (String x : NOT_SUPPORT_ZH) if (n.equals(x)) return true;
+        for (String x : NOT_SUPPORT_RU) if (n.equals(x)) return true;
+        return false;
+    }
+
+    /** A local command failed: re-send its original Russian to the LLM, marked, so it isn't a dead moo.
+     *  Detection may run in the TTS process; the query lives in main, so off-main we signal main by broadcast. */
+    private static void signalLocalFailed() {
+        if (isMainProcess()) { onLocalCommandFailed(); return; }
+        try { if (appCtx != null) appCtx.sendBroadcast(new Intent(ACTION)
+                .setPackage("com.incall.apps.speechassistant").putExtra("localfailed", "1")); }
+        catch (Throwable ignored) {}
+    }
+
+    /** Native arbitration result for an injected command (runs in MAIN via the onArbitrationResult hook).
+     *  If the NLU couldn't resolve it — domain 'unknown' / intent UNDEFINED_FUNCTION|UNKNOWN — the car
+     *  can't do it: hand the original Russian to the LLM, marked for collection. This is the reliable
+     *  failure signal (the "网络异常" NLG was only one cloud-fallback variant). */
+    public static void checkArbResult(String json) {
+        try {
+            if (json == null) return;
+            org.json.JSONArray a = new JSONObject(json).optJSONArray("nluResults");
+            if (a == null || a.length() == 0) return;
+            JSONObject r = a.optJSONObject(0); if (r == null) return;
+            String dom = r.optString("domain", ""), intent = r.optString("intent", "");
+            if ("unknown".equalsIgnoreCase(dom) || intent.contains("UNDEFINED") || "UNKNOWN".equalsIgnoreCase(intent)) {
+                Log.i(TAG, "arb unknown (" + dom + "/" + intent + ") -> local command failed");
+                onLocalCommandFailed();
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    /** Runs in main (from signalLocalFailed or the receiver): fire the LLM fallback once, if recent. */
+    public static void onLocalCommandFailed() {
+        if (!isMainProcess()) return;
+        String ru = lastLocalRu, zh = lastLocalZh; int att = lastLocalAttempt; long ts = lastLocalTs;
+        if (ru == null || ru.isEmpty() || System.currentTimeMillis() - ts > 8000) return;
+        lastLocalRu = null;   // one-shot for THIS failure; a retry's own injection re-arms it
+        if (att > MAX_LOCAL_ATTEMPTS) {   // hard safety cap (backend should already have stopped)
+            Log.i(TAG, "local cmd failed, retries exhausted (" + att + "): " + ru);
+            speak("Пока не умею это. Записал."); return;
+        }
+        // Re-send marked, carrying the attempt count. Backend: at attempt < MAX it MAY return ONE
+        // corrected zhCommand (different from failedCommand); at attempt >= MAX it MUST answer without a
+        // command (collect + graceful). Either way no loop — the device notes each try and caps here.
+        Log.i(TAG, "local cmd failed -> LLM retry (attempt " + att + ", marked): [" + ru + "] zh=" + zh);
+        sendToCloud(ru, true, zh, att);
+    }
+
     public static String ttsTextToRu(String text) {
         if (text == null) return null;
         String s = text.replaceAll("\\[[^\\]]*\\]", "").trim();   // drop [se55]/[w0]… prosody tags
         if (s.isEmpty()) return null;
+        if (isLocalFailNlg(s) || isNotSupportReply(s)) { signalLocalFailed(); return null; }   // failed command → LLM
         String out;
         if (hasCyrillic(s)) {                                      // overlay Russian (maybe + stray CJK)
             if (hasCJK(s)) s = fixInlineZh(s);
@@ -591,6 +754,9 @@ public final class VoskBridge {
             // via TtsPlayer.start — those are our RU_HINTS, meant to be DISPLAYED, not spoken. Suppress
             // by rewriting to empty (both our engine and the stock cache then play nothing).
             if (isHintText(text)) { Log.i(TAG, "ttsRewrite: suppress guide-word voicing: " + text); return ""; }
+            // Failed local command — unknown-intent moo (网络异常) OR a "learning" reply for a recognized
+            // command the car can't perform: suppress on screen too and hand the original RU to the LLM.
+            if (isLocalFailNlg(text) || isNotSupportReply(text)) { Log.i(TAG, "ttsRewrite: fail/not-support NLG suppressed -> LLM: " + text); signalLocalFailed(); return ""; }
             String r = ttsTextToRu(text); return (r != null && !r.isEmpty()) ? r : text;
         } catch (Throwable t) { return text; }
     }
@@ -617,7 +783,9 @@ public final class VoskBridge {
              .replace("已调亮", "ярче").replace("已调暗", "темнее").replace("调亮", "ярче").replace("调暗", "темнее")
              .replace("已调到", "установлено ").replace("已调", "").replace("已打开", "включено").replace("已关闭", "выключено")
              .replace("已开启", "включено").replace("中控屏", "экран").replace("屏幕", "экран").replace("亮度", "яркость")
-             .replace("语音", "").replace("音量", "громкость").replace("温度", "температура")
+             // volume channel names as the DM inserts them («громкость %s увеличена»)
+             .replace("蓝牙电话", "телефона").replace("多媒体", "медиа").replace("导航", "навигации").replace("耳机", "наушников")
+             .replace("语音助手", "голоса").replace("语音", "голоса").replace("音量", "громкость").replace("温度", "температура")
              .replace("空调", "климат").replace("座椅", "сиденье").replace("车窗", "окно");
         s = s.replaceAll("[\\u4E00-\\u9FFF]+", "");               // drop any remaining CJK
         return s.replaceAll("\\s{2,}", " ").replaceAll("\\s+([,.:;!?])", "$1").trim();
@@ -701,9 +869,9 @@ public final class VoskBridge {
         String core = zh2ruCore(s);
         if (core == null) return null;
         if (addr == null || addr.isEmpty()) return core;
-        // Driver: keep the greeting terse — no seat name, and the listen prompt is just «Слушаю»
-        // («Водитель, я слушаю» звучит слишком сложно). Other seats are still greeted by name.
-        if ("Водитель".equals(addr)) return "Я слушаю".equals(core) ? "Слушаю" : core;
+        // Driver: keep the greeting terse — no seat name («Водитель, чем могу помочь» звучит громоздко).
+        // Other seats are still greeted by name.
+        if ("Водитель".equals(addr)) return core;
         return addr + ", " + Character.toLowerCase(core.charAt(0)) + core.substring(1);
     }
 
@@ -711,11 +879,12 @@ public final class VoskBridge {
     static String zh2ruCore(String s) {
         switch (s) {
             // --- assistant tips: wakeup / barge-in / sleep / reject (learning) / easter-egg ---
-            case "我在": case "在呢": return "Я слушаю";
-            case "我来了": case "来了": case "我在这儿呢": return "Я здесь";
+            // Wake / listen prompts — owner wants a single activation phrase: «Чем могу помочь?»
+            case "我在": case "在呢": return "Чем могу помочь";
+            case "我来了": case "来了": case "我在这儿呢": return "Чем могу помочь";
             case "有什么可以帮您": return "Чем могу помочь";
-            case "请说": return "Я слушаю";
-            case "你说": case "你先": case "你先说": return "Я слушаю";
+            case "请说": return "Чем могу помочь";
+            case "你说": case "你先": case "你先说": return "Чем могу помочь";
             case "再见啦": return "До свидания";
             case "有事再喊我": return "Позовите, если что понадобится";
             case "下次再见": return "До встречи";
@@ -765,22 +934,81 @@ public final class VoskBridge {
         } catch (Throwable t) { Log.e(TAG, "showTtsSubtitle", t); }
     }
 
-    // Backend base — neutralized for the offline-only release (OFFLINE_ONLY=true → never contacted).
-    // No personal address ships in the public build; set at deploy time if online is ever re-enabled.
-    private static final String BACKEND   = "http://127.0.0.1:8080";
-    private static final String CHAT_URL  = BACKEND + "/dubhe/dubhe-gateway/dialog-new";
+    // Our Russian assistant backend (FastAPI; see changan-a06-assistant-backend). Contract: docs/API.md.
+    private static final String BACKEND   = "https://sda.tecrow.org";
+    private static final String CHAT_URL  = BACKEND + "/assistant/dialog";
     // Mirror Changan's AiBox uplink actions (aibox/AiBoxConst: loadStatus/loadDicts were declared
     // but never wired in stock firmware) — we implement them ourselves so our backend/LLM gets
     // live car context the stock cloud never receives. See memory [[aiassist-llm]].
     private static final String LOAD_STATUS_URL = BACKEND + "/aibox/loadStatus";
     private static final String LOAD_DICTS_URL  = BACKEND + "/aibox/loadDicts";
 
-    /** Non-command Russian -> our OpenAI backend -> speak the answer. */
-    static void sendToCloud(final String text) {
+    /** Non-command Russian -> our backend (POST /assistant/dialog) -> speak the RU answer and
+     *  actuate any car commands the backend returns in data.nluResults[]. No RU<->ZH translation:
+     *  the query goes as raw Russian, the answer comes back as Russian. Contract: docs/API.md. */
+    // Rolling multi-turn history sent to the backend so it resolves follow-ups ("а сколько до неё км?").
+    // Capped by total CHARACTER count (not message count), oldest dropped first; the newest exchange is
+    // always kept even if it alone exceeds the cap. Kept on-device only, lost on process restart.
+    private static final int MAX_HISTORY_CHARS = 2000;
+    private static final java.util.ArrayDeque<String[]> HISTORY = new java.util.ArrayDeque<String[]>();
+
+    /** Append one (user, assistant) exchange, then trim oldest until total text ≤ MAX_HISTORY_CHARS. */
+    private static void recordTurn(String user, String assistant) {
+        if (user == null) user = ""; if (assistant == null) assistant = "";
+        if (user.isEmpty() && assistant.isEmpty()) return;
+        synchronized (HISTORY) {
+            HISTORY.addLast(new String[]{ user, assistant });
+            int total = 0;
+            for (String[] t : HISTORY) total += t[0].length() + t[1].length();
+            while (HISTORY.size() > 1 && total > MAX_HISTORY_CHARS) {
+                String[] r = HISTORY.removeFirst();
+                total -= r[0].length() + r[1].length();
+            }
+        }
+    }
+
+    /** History as a JSON array of {role,text}, oldest first (empty until the first answered turn). */
+    private static org.json.JSONArray historyArr() {
+        org.json.JSONArray a = new org.json.JSONArray();
+        try {
+            synchronized (HISTORY) {
+                for (String[] t : HISTORY) {
+                    if (t[0] != null && !t[0].isEmpty())
+                        a.put(new JSONObject().put("role", "user").put("text", t[0]));
+                    if (t[1] != null && !t[1].isEmpty())
+                        a.put(new JSONObject().put("role", "assistant").put("text", t[1]));
+                }
+            }
+        } catch (Throwable ignored) {}
+        return a;
+    }
+
+    /** Clear the conversation buffer (e.g. on a fresh wake / long silence). */
+    public static void clearHistory() { synchronized (HISTORY) { HISTORY.clear(); } }
+
+    static void sendToCloud(final String text) { sendToCloud(text, false, null, 0); }
+    static void sendToCloud(final String text, final boolean localFailed) { sendToCloud(text, localFailed, null, 0); }
+
+    /** localFailed=true: this query was a command the car couldn't execute (native NLU returned unknown).
+     *  The backend COLLECTS it (query + failedCommand) to adapt. attempt = injection tries already made:
+     *  at attempt < MAX the backend MAY return ONE corrected zhCommand (the LLM's second guess); at
+     *  attempt >= MAX it MUST answer without a command. Bounded — one retry, never a loop. */
+    static void sendToCloud(final String text, final boolean localFailed, final String failedCommand, final int attempt) {
+        if (!isMainProcess()) return;   // one backend call + one TTS, in the process where TtsClient is ready
         new Thread(new Runnable() { public void run() {
             try {
+                // reqId starts with "stand" so commands we execute below survive onArbitrationResult's guard.
+                final String rid = "standask-" + System.currentTimeMillis();
                 // Attach live car status so our LLM has context the stock cloud never gets.
-                String body = new JSONObject().put("query", text).put("carStatus", collectStatus()).toString();
+                JSONObject bodyObj = new JSONObject()
+                        .put("requestId", rid).put("query", text).put("lang", "ru")
+                        .put("carStatus", collectStatus())
+                        .put("installedApps", collectApps())   // user-installed pkgs -> backend app-action registry
+                        .put("history", historyArr())          // last ~3 exchanges (role+text) for multi-turn context
+                        .put("localCommandFailed", localFailed) // true = a command the car couldn't do (collect+adapt)
+                        .put("localAttempt", attempt);          // injection tries already made (0 on first call)
+                if (failedCommand != null && !failedCommand.isEmpty()) bodyObj.put("failedCommand", failedCommand);
+                String body = bodyObj.toString();
                 java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(CHAT_URL).openConnection();
                 c.setConnectTimeout(4000); c.setReadTimeout(30000);
                 c.setRequestMethod("POST"); c.setDoOutput(true);
@@ -791,19 +1019,89 @@ public final class VoskBridge {
                 java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
                 byte[] b = new byte[4096]; int n; while ((n = in.read(b)) > 0) bo.write(b, 0, n);
                 String resp = bo.toString("UTF-8"); in.close();
-                String answer = "", audio = "";
+                String answer = "", answerTts = "", audio = "", followup = "";
+                org.json.JSONArray nlu = null, appActions = null, zhCmds = null;
                 try {
                     JSONObject d = new JSONObject(resp).getJSONObject("data");
                     answer = d.optString("answer", "");
+                    answerTts = d.optString("answerTts", "");   // optional: '+'-stressed variant for TTS
                     audio = d.optString("audioPcm16k", "");
+                    followup = d.optString("followupTts", "");
+                    nlu = d.optJSONArray("nluResults");
+                    appActions = d.optJSONArray("appActions");   // launch into 3rd-party apps (navi/music/...)
+                    // Raw Chinese command phrases the LLM generated for a command it couldn't map to a known
+                    // intent — we inject them and let the FULL native NLU try to recognize+actuate (better
+                    // than refusing). Accept a list or a single string.
+                    zhCmds = d.optJSONArray("zhCommands");
+                    if (zhCmds == null) {
+                        String one = d.optString("zhCommand", "");
+                        if (!one.isEmpty()) zhCmds = new org.json.JSONArray().put(one);
+                    }
                 } catch (Throwable ignored) {}
-                Log.i(TAG, "LLM answer for [" + text + "]: " + answer);
-                if (!answer.isEmpty()) {
-                    showOnScreen(answer, TYPE_FEEDBACK); // answer message on the assistant widget
-                    showTtsSubtitle(answer);             // spoken-subtitle channel (avatar/TTS)
+                Log.i(TAG, "backend answer for [" + text + "]: " + answer
+                        + (nlu != null ? " (+" + nlu.length() + " nluResults)" : ""));
+                // 1) execute any car commands the backend returned (implicit->action / command fallback)
+                if (nlu != null) {
+                    for (int i = 0; i < nlu.length(); i++) {
+                        JSONObject r = nlu.optJSONObject(i); if (r == null) continue;
+                        String dom = r.optString("domain", ""), intent = r.optString("intent", "");
+                        if (dom.isEmpty() || intent.isEmpty()) continue;
+                        java.util.LinkedHashMap<String,String> slots = new java.util.LinkedHashMap<String,String>();
+                        org.json.JSONArray sa = r.optJSONArray("slots");
+                        if (sa != null) for (int j = 0; j < sa.length(); j++) {
+                            JSONObject s = sa.optJSONObject(j); if (s == null) continue;
+                            String nm = s.optString("name", ""); if (nm.isEmpty()) continue;
+                            // Prefer normalizedValue (capture has bare "22" for temperature); else derive
+                            // by stripping a unit from a numeric value ("22度"->"22").
+                            String nv = s.optString("normalizedValue", "");
+                            slots.put(nm, !nv.isEmpty() ? nv : normSlot(s.optString("value", "")));
+                        }
+                        // Actuate through the PROVEN pipeline: intent/slots -> Chinese phrase -> injectZh
+                        // (onFinalAsrResult). execArbitration/onArbitrationResult does NOT actuate carControl.
+                        String zh = zhFromNlu(intent, slots);
+                        if (zh != null) {
+                            Log.i(TAG, "backend cmd -> injectZh: " + zh + "  [" + dom + "/" + intent + " " + slots + "]");
+                            if (i > 0) { try { Thread.sleep(900); } catch (InterruptedException ignored) {} } // serialize multi-intent
+                            injectZh(zh);
+                        } else {
+                            String jj = arbFlat(rid, text, dom, intent, slots);
+                            if (jj != null) { Log.i(TAG, "backend cmd -> execArbitration (no zh map; may not actuate): " + dom + "/" + intent + " " + slots); execArbitration(jj); }
+                        }
+                    }
                 }
-                if (!audio.isEmpty()) playPcm(audio);       // RU speech from our backend
-                else if (!answer.isEmpty()) speak(answer);   // fallback: iFlytek TTS (Chinese voice)
+                // 1a') raw LLM Chinese commands (fallback for anything not mapped to a known intent):
+                //      inject straight into the native NLU and let the car recognize+actuate it, instead
+                //      of the backend refusing. Native handles an unknown one itself ("нет такой функции",
+                //      spoken in RU via the overlays). Runs after structured nluResults, serialized.
+                if (zhCmds != null) {
+                    for (int i = 0; i < zhCmds.length(); i++) {
+                        String zc = zhCmds.optString(i, "").trim();
+                        if (zc.isEmpty()) continue;
+                        // Track a single-command guess so its failure is caught. This IS noted on a
+                        // localFailed retry too (attempt+1), so a second failed guess ends the bounded
+                        // retry (device caps in onLocalCommandFailed; backend caps by localAttempt).
+                        if (zhCmds.length() == 1) noteInjected(text, zc, attempt + 1);
+                        Log.i(TAG, "backend zhCommand -> injectZh: " + zc + " (try " + (attempt + 1) + ")");
+                        try { Thread.sleep(900); } catch (InterruptedException ignored) {} // serialize after nlu
+                        injectZh(zc);
+                    }
+                }
+                // 1b) launch backend-provided app actions (nav/music/messenger deep-links) — gated to
+                //     user-installed, non-system packages only (see fireAppActions).
+                if (appActions != null) fireAppActions(appActions);
+                // 2) show + speak. The backend marks stress with '+' (RUAccent) for the TTS; that reads
+                //    badly on screen, so DISPLAY gets a stripped (clean) string and TTS gets the marked
+                //    one. followupTts wins after a command. answerTts (if sent) is the marked variant.
+                String spoken  = !followup.isEmpty() ? followup : (!answerTts.isEmpty() ? answerTts : answer);
+                String display = stripStress(!followup.isEmpty() ? followup : answer);
+                if (!display.isEmpty()) {
+                    showOnScreen(display, TYPE_FEEDBACK); // answer message on the assistant widget
+                    showTtsSubtitle(display);             // spoken-subtitle channel (avatar/TTS)
+                }
+                if (!audio.isEmpty()) playPcm(audio);      // RU speech pre-synthesized by our backend
+                else if (!spoken.isEmpty()) speak(spoken);  // else our on-device Tera TTS (RU), '+' consumed
+                // record this exchange for multi-turn context (clean text, no '+' stress marks)
+                recordTurn(text, stripStress(!followup.isEmpty() ? followup : answer));
             } catch (Throwable t) {
                 Log.e(TAG, "sendToCloud", t);
             }
@@ -834,6 +1132,38 @@ public final class VoskBridge {
             return i == -200 ? null : Integer.valueOf(i);   // -200 = CaCarManager.DEFAULT sentinel
         } catch (Throwable t) { return null; }
     }
+    /** Best-effort int[] read via CaCarManager.getIntArrayProperty (VENDOR array props, e.g. the
+     *  climate-status block 0x21416810). Returns null on error / empty. */
+    private static int[] carIntArr(Object mgr, int propId, int areaId) {
+        if (mgr == null) return null;
+        // (a) CaCarManager.getIntArrayProperty(int,int)
+        try {
+            Object v = mgr.getClass().getMethod("getIntArrayProperty", int.class, int.class)
+                          .invoke(mgr, propId, areaId);
+            int[] a = (int[]) v;
+            if (a != null && a.length > 0) return a;
+        } catch (Throwable ignored) {}
+        // (b) fall back to the raw CarPropertyManager.getProperty(Integer[].class, id, area)
+        // NOTE: as of 2026-09 both paths return null for the climate block 0x21416810 on this car —
+        // the live HVAC state sits on the SoaBridge/DDS bus, not the accessible CarPropertyManager.
+        // Kept so climateTemp populates automatically if the prop ever becomes readable (AC active).
+        try {
+            java.lang.reflect.Field f = mgr.getClass().getDeclaredField("mCarManager");
+            f.setAccessible(true);
+            Object cpm = f.get(mgr);
+            if (cpm != null) {
+                Object cpv = cpm.getClass().getMethod("getProperty", Class.class, int.class, int.class)
+                                .invoke(cpm, Integer[].class, propId, areaId);
+                Object val = cpv == null ? null : cpv.getClass().getMethod("getValue").invoke(cpv);
+                if (val instanceof Integer[]) {
+                    Integer[] ia = (Integer[]) val; int[] a = new int[ia.length];
+                    for (int i = 0; i < ia.length; i++) a[i] = ia[i] == null ? 0 : ia[i].intValue();
+                    if (a.length > 0) return a;
+                }
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
     private static Boolean carBool(Object mgr, String method, Object... args) {
         if (mgr == null) return null;
         try {
@@ -863,6 +1193,7 @@ public final class VoskBridge {
     /** Collect whatever car status is readable from SA into a compact JSON snapshot. */
     static JSONObject collectStatus() {
         JSONObject s = new JSONObject();
+        long t0 = System.currentTimeMillis();
         try {
             String vin  = comVar("sVin");            if (!vin.isEmpty())  s.put("vin", vin);
             String tuid = comVar("sTuid");           if (!tuid.isEmpty()) s.put("tuid", tuid);
@@ -883,19 +1214,137 @@ public final class VoskBridge {
             Boolean p2 = carBool(m, "isLocationHasPerson", Integer.valueOf(4));
             if (p1 != null) s.put("occDriver", p1.booleanValue());
             if (p2 != null) s.put("occPassenger", p2.booleanValue());
-            // Best-effort comfort props (may be permission-gated -> silently omitted). Ids from doc 08.
-            putInt(s, "acTempDriverRaw", carInt(m, 4218898, 0)); // decode: T = (raw+34)/2
-            putInt(s, "acTempPsgRaw",    carInt(m, 4218901, 0));
-            putInt(s, "acOn",            carInt(m, 4218905, 0));
-            putInt(s, "acFan",           carInt(m, 4218889, 0));
-            putInt(s, "winFL",           carInt(m, 4202844, 0)); // window position %
-            putInt(s, "winFR",           carInt(m, 4202860, 0));
-            putInt(s, "sunroof",         carInt(m, 4202908, 0));
-            putInt(s, "seatHeatDriver",  carInt(m, 4212038, 0));
-            putInt(s, "seatVentDriver",  carInt(m, 4212019, 0));
-            if (s.has("acTempDriverRaw")) { int r = s.getInt("acTempDriverRaw"); if (r > 0) s.put("acTempDriverC", (r + 34) / 2.0); }
+            // Climate status: DISABLED. The VENDOR array 0x21416810 sits on the SoaBridge/DDS bus and is
+            // NOT reachable via CaCarManager — the read BLOCKS ~10-20s waiting for a bus reply that never
+            // comes, then returns null (verified: it added ~22s to EVERY backend request). It never
+            // populated anything useful, so we don't read it. If live climate is ever needed, read it
+            // ASYNCHRONOUSLY off the request path with a hard timeout — never inline in collectStatus.
+            // int[] clim = carIntArr(m, 0x21416810, 0);  // <-- do NOT re-add inline: 20s bus timeout
         } catch (Throwable t) { Log.e(TAG, "collectStatus", t); }
+        Log.i(TAG, "collectStatus in " + (System.currentTimeMillis() - t0) + "ms");
         return s;
+    }
+
+    // ============================== 3rd-party app actions ==============================
+    // The backend may return `data.appActions[]`, each a launch descriptor for a 3rd-party app:
+    //   { "action":"android.intent.action.VIEW",         // default VIEW
+    //     "uri":"yandexnavi://build_route_on_map?lat_to=55.75&lon_to=37.62",
+    //     "package":"ru.yandex.yandexnavi",              // optional; else resolved from uri
+    //     "component":"pkg/.Cls",                          // optional explicit component
+    //     "extras":{"k":"v"} }                             // optional STRING extras
+    // SECURITY: we launch ONLY into packages the USER installed (non-system). The allowlist is
+    // computed on-device from PackageManager, so even a garbled/hijacked backend reply can never
+    // start a system app (Settings, dialer, etc.) under our uid=system. We also lock the intent to
+    // the vetted package (setPackage) so it can't be rerouted to a chooser or another app.
+
+    /** Genuine 3rd-party packages the USER installed — the launch allowlist.
+     *  Excluded: (a) FLAG_SYSTEM / updated-system apps; (b) PLATFORM-SIGNED packages. (b) is the key
+     *  gate on this car: the russification reinstalled the WHOLE system stack (ru.lang.incall.* :
+     *  remotecontrol, vehiclesetting, coreservice, aiassist, SoaBridgeTransit …) into /data, so they
+     *  look third-party by flags — but they carry the platform signature (test-keys). Real apps
+     *  (Yandex Navi, RuStore, Telegram) each have their own signature, so checkSignatures("android",p)
+     *  != MATCH lets them through while every car-system app is refused. Our own platform-signed
+     *  package is excluded by the same rule. */
+    // Cached: enumerating installed apps + a checkSignatures IPC PER package (~250 on this car) costs
+    // ~seconds, and it must NOT sit on every request's hot path. Computed once (lazily), then reused;
+    // invalidated on package add/remove (see StandNluReceiver PACKAGE_* / appsChanged()).
+    private static volatile java.util.Set<String> appsCache;
+    private static volatile long appsCacheTs;
+    private static volatile boolean appsRefreshing;
+    private static final long APPS_TTL = 5 * 60 * 1000L;   // recompute at most every 5 min (async)
+
+    private static java.util.Set<String> userAppPackages() {
+        java.util.Set<String> c = appsCache;
+        if (c != null) {
+            // serve cache instantly; if stale, refresh in the background so the hot path never blocks
+            if (System.currentTimeMillis() - appsCacheTs > APPS_TTL && !appsRefreshing) {
+                appsRefreshing = true;
+                new Thread(new Runnable() { public void run() {
+                    try { computeUserApps(); } finally { appsRefreshing = false; }
+                }}).start();
+            }
+            return c;
+        }
+        return computeUserApps();   // first call: compute synchronously (then cached)
+    }
+
+    /** Enumerate + filter installed apps, cache the result (compute-then-swap; never nulls the cache). */
+    private static java.util.Set<String> computeUserApps() {
+        java.util.LinkedHashSet<String> set = new java.util.LinkedHashSet<String>();
+        try {
+            if (appCtx == null) return set;   // don't cache before init
+            long t0 = System.currentTimeMillis();
+            android.content.pm.PackageManager pm = appCtx.getPackageManager();
+            java.util.List<android.content.pm.ApplicationInfo> all = pm.getInstalledApplications(0);
+            for (android.content.pm.ApplicationInfo ai : all) {
+                int f = ai.flags;
+                boolean sys = (f & android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+                           || (f & android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
+                if (sys) continue;
+                // platform-signed => part of the car system (russified stack) => never launch it
+                if (pm.checkSignatures("android", ai.packageName)
+                        == android.content.pm.PackageManager.SIGNATURE_MATCH) continue;
+                set.add(ai.packageName);
+            }
+            Log.i(TAG, "userAppPackages computed in " + (System.currentTimeMillis() - t0)
+                    + "ms (" + all.size() + " installed -> " + set.size() + " user apps)");
+            appsCache = set; appsCacheTs = System.currentTimeMillis();
+        } catch (Throwable t) { Log.e(TAG, "userAppPackages", t); }
+        return set;
+    }
+
+    /** Drop the installed-apps cache (call when a package is added/removed). */
+    public static void appsChanged() { appsCache = null; }
+
+    /** User-installed packages as a JSON array, sent to the backend so it only offers real apps. */
+    static org.json.JSONArray collectApps() {
+        org.json.JSONArray arr = new org.json.JSONArray();
+        for (String p : userAppPackages()) arr.put(p);
+        return arr;
+    }
+
+    /** Launch backend-provided app actions, gated to user-installed (non-system) packages. */
+    static void fireAppActions(org.json.JSONArray acts) {
+        if (acts == null || acts.length() == 0 || appCtx == null) return;
+        java.util.Set<String> allowed = userAppPackages();
+        android.content.pm.PackageManager pm = appCtx.getPackageManager();
+        for (int i = 0; i < acts.length(); i++) {
+            try {
+                JSONObject a = acts.optJSONObject(i); if (a == null) continue;
+                String action = a.optString("action", Intent.ACTION_VIEW);
+                String uri    = a.optString("uri", "");
+                String pkg    = a.optString("package", "");
+                String comp   = a.optString("component", "");
+                Intent it = new Intent(action);
+                if (!uri.isEmpty()) it.setData(android.net.Uri.parse(uri));
+                JSONObject ex = a.optJSONObject("extras");
+                if (ex != null) {
+                    java.util.Iterator<String> keys = ex.keys();
+                    while (keys.hasNext()) { String k = keys.next(); it.putExtra(k, ex.optString(k)); }
+                }
+                // Determine the target package: explicit -> from component -> resolve from the intent.
+                String target = pkg;
+                if (target.isEmpty() && comp.contains("/")) target = comp.substring(0, comp.indexOf('/'));
+                if (target.isEmpty()) {
+                    android.content.pm.ResolveInfo ri = pm.resolveActivity(it, 0);
+                    if (ri != null && ri.activityInfo != null) target = ri.activityInfo.packageName;
+                }
+                // SECURITY GATE: must be a package the user installed (never a system app).
+                if (target.isEmpty() || !allowed.contains(target)) {
+                    Log.w(TAG, "appAction REFUSED (not a user app): '" + target + "' uri=" + uri);
+                    continue;
+                }
+                it.setPackage(target);   // lock to the vetted app — no chooser, no rerouting
+                if (comp.contains("/")) {
+                    String cls = comp.substring(comp.indexOf('/') + 1);
+                    if (cls.startsWith(".")) cls = target + cls;
+                    it.setComponent(new android.content.ComponentName(target, cls));
+                }
+                it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                Log.i(TAG, "appAction -> " + target + " " + action + " " + uri);
+                appCtx.startActivity(it);
+            } catch (Throwable t) { Log.e(TAG, "fireAppActions[" + i + "]", t); }
+        }
     }
 
     /** Generic fire-and-forget JSON POST to our backend (background thread). */
@@ -934,9 +1383,9 @@ public final class VoskBridge {
             try {
                 Class<?> nmC = Class.forName("com.incall.apps.speechassistant.nlu.NluManager");
                 Object nm = nmC.getMethod("getInstance").invoke(null);
-                // reqId MUST start with "vosk" so the patched onArbitrationResult guard keeps it
-                // (the guard drops non-"vosk" results — the native Chinese SR path).
-                String reqId = "voskzh-" + System.currentTimeMillis();
+                // reqId MUST start with "stand" so the patched onArbitrationResult guard keeps it
+                // (the guard drops non-"stand" results — the native Chinese SR path).
+                String reqId = "standzh-" + System.currentTimeMillis();
                 forceWakeIfAsleep(wakeZone);  // injected command must execute past the free-wake gate
                 try { nmC.getMethod("updateSidTimestamp", String.class).invoke(nm, reqId); } catch (Throwable ignored) {}
                 // signature is (requestId, direction, asrText, confidence) — NOT (asrText, dir, reqId, ...)
@@ -965,7 +1414,7 @@ public final class VoskBridge {
      *  log the raw response. onFinalAsrResult only runs LOCAL NLU — the cloud is consulted from
      *  SrBaseSession, which our text injection bypasses. Here we call CloudNlu.sendPostRequest
      *  directly (public, same call SrBaseSession makes). The response is logged by CloudNlu at level i
-     *  ("get nlu success: <json>"). reqId starts with "vosk" so onCloudNluResult survives our guard.
+     *  ("get nlu success: <json>"). reqId starts with "stand" so onCloudNluResult survives our guard.
      *  Needs a NATIVE_CLOUD build (endpoints not redirected to 127.0.0.1). */
     public static void dubheTest(final String zh) {
         new Thread(new Runnable() { public void run() {
@@ -973,7 +1422,7 @@ public final class VoskBridge {
                 Class<?> c = Class.forName("com.incall.apps.speechassistant.nlu.CloudNlu");
                 Object cn = c.getConstructor().newInstance();
                 try { c.getMethod("init").invoke(cn); } catch (Throwable ignored) {}  // location listener (optional)
-                String reqId = "voskzh-" + System.currentTimeMillis();
+                String reqId = "standzh-" + System.currentTimeMillis();
                 Log.i(TAG, "dubheTest -> cloud (zone " + wakeZone + ") reqId=" + reqId + ": " + zh);
                 c.getMethod("sendPostRequest", int.class, String.class, String.class)
                  .invoke(cn, wakeZone, reqId, zh);
@@ -999,7 +1448,7 @@ public final class VoskBridge {
                 if (carModel != null) j.put("carModel", carModel);
                 j.put("zoneId", wakeZone);
                 if (vin != null) j.put("vin", vin);
-                j.put("requestId", "voskask-" + System.currentTimeMillis());
+                j.put("requestId", "standask-" + System.currentTimeMillis());
                 if (tuid != null) j.put("tuid", tuid);
                 j.put("query", zh);
                 j.put("isWakeFree", false);
@@ -1160,31 +1609,47 @@ public final class VoskBridge {
     // the stock guide_words.txt (40 phrases across climate/media/nav/system/modes/info). Every control
     // hint below was verified to resolve to a real ru2zh command (see ru2zh/translate-task tests); the
     // few info/chat ones (weather/what-to-wear) intentionally fall through to the cloud assistant.
+    // атрибуция (@alvoronoff / @sda_ai) намеренно разнесена в середину списка и НЕ подряд — см. ниже.
+    // Не озвучивается (isHintText). Экрана с поворотом на C390 нет — такой подсказки нет.
+    // Every phrase here is verified to map in ru2zh by the JVM hints harness (scratchpad/hints/HintsTest:
+    // real RuBridge classes from build/dex7 + a no-op android.util.Log shim). Zone variants are given
+    // ONLY for seats / windows / lights — those intents carry a zone and map to distinct catalog phrases
+    // (打开后排右座椅加热, 打开后排左车窗, 打开左后阅读灯). Cabin TEMPERATURE is NOT zone-addressable in the
+    // stock NLU (SET_AIR_CONDITIONER_TEMPERATURE has only a `temperature` slot; no zoned sample in the
+    // catalog or the 566-query capture), so no "температура сзади" hint. Nav hints intentionally miss
+    // ru2zh (null) and go to the backend → Yandex Navi appActions.
     private static final String[] RU_HINTS = {
-        // атрибуция (показывается в виджете, не озвучивается — см. isHintText)
-        "Разработчик: Алексей Воронов", "Модификация распространяется бесплатно", "Версия 1.0.2",
         // климат
-        "включи климат", "температура 22", "быстро охлади салон", "обдув на лицо и ноги",
-        "включи обдув лобового", "включи рециркуляцию",
-        // сиденья
-        "подогрев сиденья водителя на 2", "вентиляция сиденья водителя", "массаж сиденья",
-        "сдвинь сиденье вперёд",
-        // окна / люк / зеркала
-        "открой окно водителя", "оставь окно приоткрытым", "закрой все окна", "открой панораму",
-        "сложи зеркала", "обогрев зеркал", "помой лобовое",
+        "включи климат", "сделай теплее", "температура 22", "быстро охлади салон",
+        "обдув в ноги", "сделай обдув сильнее", "включи обогрев руля",
+        "включи обогрев заднего стекла", "включи обогрев лобового", "включи рециркуляцию",
+        // сиденья (+ зоны)
+        "подогрей сиденье водителя", "включи обогрев сиденья пассажира", "подогрей заднее правое сиденье",
+        "включи обогрев всех сидений", "включи вентиляцию сиденья", "включи массаж сиденья",
+        // окна / люк (+ зоны)
+        "открой окно водителя", "открой окно пассажира", "открой заднее левое окно", "закрой окна сзади",
+        "приоткрой окна", "закрой все окна", "открой люк", "закрой шторку люка", "проветри салон",
+        "Автор: @alvoronoff",                          // credit #1 — в середине списка
+        // свет (+ зоны)
+        "включи свет в салоне сзади", "включи свет сзади слева", "включи подсветку салона",
+        "приглуши подсветку", "включи ближний свет", "включи дальний свет", "включи аварийку",
+        "включи свет в багажнике",
+        // кузов / зеркала / камера
+        "открой багажник", "открой лючок зарядки", "сложи зеркала", "разложи зеркала",
+        "включи обогрев зеркал", "включи круговой обзор",   // «помой стекло» убрано: дворники/омыватель заблокированы конфигом авто (0x6003_27=2)
         // холодильник
-        "открой холодильник", "включи холодильник", "холодильник на -5",
-        // свет
-        "включи ближний свет", "включи подсветку салона", "сделай подсветку ярче",
-        "включи передний свет в салоне", "включи свет в багажнике",
+        "открой холодильник", "поставь холодильник на 5 градусов",
         // медиа
-        "включи музыку", "громче", "следующий трек",
-        // экран / система
-        "поверни экран горизонтально", "сделай экран ярче", "включи тёмную тему",
-        // режимы
-        "режим сна", "режим кинотеатра",
-        // инфо
-        "проверь давление в шинах", "сколько осталось заряда"
+        "включи музыку", "сделай громче", "сделай тише", "следующий трек", "поставь на паузу",
+        // навигация (online → Яндекс)
+        "поехали домой", "найди заправку", "где ближайшая парковка",
+        "Телеграм: @sda_ai",                           // credit #2 — во второй половине, не подряд с #1
+        // режим движения / энергия
+        "переключи на электричество", "переключи на топливо", "режим экономии",
+        // экран / темы / сцены
+        "сделай экран ярче", "включи тёмную тему", "режим сна", "режим кинотеатра",
+        // инфо (офлайн, отвечает машина)
+        "сколько осталось заряда", "какой запас хода", "проверь давление в шинах"
     };
 
     /** Read SrBaseSession.getCurrentDirect() on the session object (which seat woke SR). */
@@ -1194,34 +1659,6 @@ public final class VoskBridge {
             int d = ((Number) v).intValue();
             return (d >= 1 && d <= 5) ? d : fallback;
         } catch (Throwable t) { return fallback; }
-    }
-    /** SrBaseSession direction number -> our normalized zone code (1=driver,2=passenger,3/4/5=rear). */
-    private static String zoneCode(int dir) {
-        switch (dir) {
-            case 1: return "DRIVER";
-            case 2: return "PASSENGER";
-            case 3: case 4: case 5: return "REAR";
-            default: return "DRIVER";
-        }
-    }
-
-    // Grade words -> normalized grade codes (as used by arbiConfig/dm: PLUS/MINUS/MIN/MAX).
-    private static String gradeOf(String s) {
-        if (s.contains("максим") || s.contains("на всю") || s.contains("полностью")) return "MAX";
-        if (s.contains("миним")) return "MIN";
-        if (s.contains("тепл") || s.contains("больш") || s.contains("выше") || s.contains("прибав")
-            || s.contains("громч") || s.contains("ярче") || s.contains("сильн")) return "PLUS";
-        if (s.contains("холод") || s.contains("мень") || s.contains("ниже") || s.contains("убав")
-            || s.contains("тише") || s.contains("темнее") || s.contains("слаб")) return "MINUS";
-        return "";
-    }
-    private static boolean isOn(String s) {
-        return s.contains("включ") || s.contains("откр") || s.contains("подним") || s.contains("запус")
-            || s.contains("вклчю") || s.contains("вкл ");
-    }
-    private static boolean isOff(String s) {
-        return s.contains("выключ") || s.contains("отключ") || s.contains("выруб") || s.contains("закр")
-            || s.contains("опусти") || s.contains("останов") || s.contains("выкл ");
     }
     public static Object ruGuideSleep() { return ruGuide(); }
     public static Object ruGuideSr()    { return ruGuide(); }
@@ -1252,1211 +1689,48 @@ public final class VoskBridge {
     }
 
 
-    // ==== EXTENDED ru2zh (v4: adapted for N-best/fuzzy): full 328-intent RU→ZH. One utt -> ONE ZH. ====
-    /** Physical-actuation commands (doors, trunk, autopilot, parking, summon) are only injected
-     *  when this is true. Off by default: the phrase is logged + a hint is shown instead. */
-    private static final boolean ALLOW_UNSAFE = true;   // release: physical actuation enabled (doors/trunk/frunk/tailgates/autopilot/parking/summon)
 
-    private static String unsafeGate(String zh) {
-        if (ALLOW_UNSAFE) return zh;
-        Log.w(TAG, "ru2zh: UNSAFE blocked (ALLOW_UNSAFE=false): " + zh);
-        showOnScreen("Команда требует подтверждения", TYPE_FEEDBACK);
-        return null;
-    }
-
-    // ---------------------------------------------------------------- zones (REPLACES VoskBridge versions)
-
-    /** REPLACES zoneOf() in VoskBridge: adds rear-left / rear-right / front-row zones.
-     *  The stock NLU distinguishes 主驾/副驾/前排/后排/后排左/后排右/所有 (see dm_cmd.json name lists).
-     *  Order matters: rear+side combos BEFORE the bare "пассажир" check — «заднему правому
-     *  пассажиру» must resolve to REAR_RIGHT, not front PASSENGER. "сзади" is matched explicitly
-     *  ("задн" does not cover it), while "назад" must NOT trigger rear (seat-move command). */
-    private static String zoneOf(String s) {
-        boolean rear = s.contains("задн") || s.contains("сзади");
-        if (rear && s.contains("прав")) return "REAR_RIGHT";
-        if (rear && s.contains("лев")) return "REAR_LEFT";
-        if (s.contains("за водителем")) return "REAR_LEFT";
-        if (s.contains("за пассажиром")) return "REAR_RIGHT";
-        if (rear) return "REAR";
-        if (s.contains("все") || s.contains("всех") || s.contains("весь")) return "ALL";
-        if (s.contains("пассажир")) return "PASSENGER";   // front-right seat (副驾)
-        boolean front = s.contains("передн") || s.contains("спереди");
-        if (front && s.contains("прав")) return "PASSENGER";  // "переднее правое"
-        if (front && s.contains("лев")) return "DRIVER";
-        if (front) return "FRONT";
-        if (s.contains("водит")) return "DRIVER";
-        // bare side words, lowest priority (LHD: левое = водительское, правое = пассажирское)
-        if (s.contains("прав")) return "PASSENGER";
-        if (s.contains("лев")) return "DRIVER";
-        return "";
-    }
-
-    /** REPLACES zhZone() in VoskBridge: zone code -> Chinese zone word for command templates. */
-    private static String zhZone(String code) {
-        if ("DRIVER".equals(code)) return "主驾";
-        if ("PASSENGER".equals(code)) return "副驾";
-        if ("FRONT".equals(code)) return "前排";
-        if ("REAR".equals(code)) return "后排";
-        if ("REAR_LEFT".equals(code)) return "后排左";
-        if ("REAR_RIGHT".equals(code)) return "后排右";
-        if ("ALL".equals(code)) return "所有";
-        return "";
-    }
+    // ---------------------------------------------------------------- zones (REPLACES RuBridge versions)
 
     // ---------------------------------------------------------------- new slot parsers
 
-    /** OFF-verbs isOff() does not know: "погаси/потуши свет", "деактивируй", "отруби", "заглуши".
-     *  ("гаси"/"туши" cover "гасите"/"тушите"; "притуши" = dim, handled earlier in zhLights.) */
-    private static boolean offWordOf(String s) {
-        return s.contains("погаси") || s.contains("потуши") || s.contains("деактив") || s.contains("отруби")
-            || s.contains("заглуши") || s.contains("вырубай") || s.contains("убери запах")
-            || ((s.contains("гаси") || s.contains("туши")) && !s.contains("притуши") && !s.contains("пригаси"));
-    }
-
-    /** "повысь/увеличь/прибавь" — relative-plus verbs gradeOf() does not know. */
-    private static boolean plusWordOf(String s) {
-        return s.contains("повы") || s.contains("увелич") || s.contains("подбав") || s.contains("прибав");
-    }
-    /** "понизь/уменьши/убавь" — relative-minus verbs gradeOf() does not know. */
-    private static boolean minusWordOf(String s) {
-        return s.contains("пониз") || s.contains("уменьш") || s.contains("убав");
-    }
-
-    /** Percent of window/roof opening: "на 30 процентов", "наполовину" -> 50. -1 if absent. */
-    private static int percentOf(String s) {
-        if (s.contains("наполовину") || s.contains("на половину") || s.contains("половин")) return 50;
-        if (s.contains("процент") || s.contains("%")) {
-            int n = numIn(s);
-            if (n >= 1 && n <= 100) return n;
-        }
-        if (s.contains("на треть")) return 33;
-        if (s.contains("на четверть")) return 25;
-        return -1;
-    }
-
-    /** Ordinal / index: "первый".."десятый", "номер 3". -1 if absent. */
-    private static int ordinalIn(String s) {
-        if (s.contains("перв")) return 1;
-        if (s.contains("втор")) return 2;
-        if (s.contains("трет")) return 3;
-        if (s.contains("четверт")) return 4;
-        if (s.contains("пят") && !s.contains("пятнадцат")) return 5;
-        if (s.contains("шест") && !s.contains("шестнадцат")) return 6;
-        if (s.contains("седьм")) return 7;
-        if (s.contains("восьм")) return 8;
-        if (s.contains("девят") && !s.contains("девятнадцат")) return 9;
-        if (s.contains("десят") && !s.contains("надцат")) return 10;
-        if (s.contains("номер")) { int n = numIn(s); if (n > 0) return n; }
-        return -1;
-    }
-
-    /** RU app name -> Chinese app name for 打开{app}. Empty if not a known app. */
-    private static String zhAppOf(String s) {
-        if (s.contains("музык")) return "音乐";
-        if (s.contains("настройк")) return "设置";
-        if (s.contains("камер")) return "相机";
-        if (s.contains("телефон")) return "电话";
-        if (s.contains("радио")) return "收音机";
-        if (s.contains("браузер") || s.contains("интернет")) return "浏览器";
-        if (s.contains("видео") && !s.contains("сними") && !s.contains("запиши")) return "视频";
-        if (s.contains("карт") && !s.contains("карточк")) return "地图";
-        if (s.contains("галере") || s.contains("альбом") || s.contains("фотограф")) return "相册";
-        if (s.contains("магазин")) return "应用商店";
-        if (s.contains("календар")) return "日历";
-        return "";
-    }
-
-    /** RU POI category -> Chinese POI word for nearby search. Empty if none. */
-    private static String zhPoiOf(String s) {
-        if (s.contains("заправ") || s.contains("азс") || s.contains("бензин")) return "加油站";
-        if (s.contains("зарядк") || s.contains("зарядн")) return "充电站";
-        if (s.contains("парковк") || s.contains("стоянк")) return "停车场";
-        if (s.contains("кафе") || s.contains("кофе")) return "咖啡店";
-        if (s.contains("ресторан") || s.contains("поесть") || s.contains("еда")) return "餐厅";
-        if (s.contains("туалет")) return "卫生间";
-        if (s.contains("аптек")) return "药店";
-        if (s.contains("больниц") || s.contains("госпитал")) return "医院";
-        if (s.contains("супермаркет") || s.contains("магазин продукт")) return "超市";
-        if (s.contains("банкомат")) return "ATM";
-        if (s.contains("гостиниц") || s.contains("отел")) return "酒店";
-        if (s.contains("мойк")) return "洗车店";
-        return "";
-    }
-
-    /** Driving mode -> Chinese mode name. Empty if none. */
-    private static String zhDriveModeOf(String s) {
-        if (s.contains("спорт")) return "运动模式";
-        if (s.contains("эко") || s.contains("экономичн")) return "经济模式";
-        if (s.contains("комфорт")) return "舒适模式";
-        if (s.contains("стандарт") || s.contains("обычн")) return "标准模式";
-        if (s.contains("снег") || s.contains("снежн") || s.contains("зимн")) return "雪地模式";
-        if (s.contains("бездорож") || s.contains("оффроуд") || s.contains("внедорож")) return "越野模式";
-        return "";
-    }
-
-    /** Scenario / space mode (SET_SCENARIO_MODE) -> Chinese name from the dm catalog. */
-    private static String zhScenarioOf(String s) {
-        if (s.contains("кино") || s.contains("фильм")) return "影院模式";
-        if (s.contains("кроват") || s.contains("спальн") || s.contains("для сна")) return "大床模式";
-        if (s.contains("отдых") || s.contains("рассла")) return "休息空间";
-        if (s.contains("кемпинг") || s.contains("палатк")) return "露营模式";
-        if (s.contains("детск")) return "儿童模式";
-        if (s.contains("караоке")) return "K歌房模式";
-        if (s.contains("взбодр") || s.contains("бодрост")) return "提神模式";
-        if (s.contains("укачив") || s.contains("тошн")) return "晕车缓解";
-        if (s.contains("макияж") || s.contains("косметик")) return "化妆空间";
-        return "";
-    }
-
-    /** Free text after a trigger word ("позвони маме" -> "маме"). Empty if nothing follows. */
-    private static String tailAfter(String s, String key) {
-        int i = s.indexOf(key);
-        if (i < 0) return "";
-        String t = s.substring(i + key.length()).trim();
-        // strip leading fillers (repeat until stable: "меня в аэропорт" -> "аэропорт")
-        boolean changed = true;
-        while (changed) {
-            changed = false;
-            for (String f : new String[]{"на ", "в ", "к ", "до ", "мне ", "меня ", "нас ", "пожалуйста ", "быстрее ", "давай "}) {
-                if (t.startsWith(f)) { t = t.substring(f.length()).trim(); changed = true; }
-            }
-        }
-        return t;
-    }
-
     // ---------------------------------------------------------------- main translator
-
-    /**
-     * RU→ZH: translate a recognized Russian command into ONE natural Chinese command that the stock
-     * NLU understands, or null (→ offline stub / chat). Order matters: specific contexts (seats,
-     * defrost) are checked before generic ones (temperature, volume); bare context words
-     * ("да", "дальше", "назад") are matched last so they never shadow real commands.
-     */
-    /** Negation + question/narrative guard: true = the utterance must NOT actuate anything.
-     *  Shared by ru2zh() and the N-best arbitration (ru2zhBest applies it to the TOP hypothesis
-     *  so a lower alternative missing the "не" cannot bypass it). */
-    /** «на единичку/двойку/троечку/четвёрку/пятёрку…» — числительные-существительные, которых numIn не знает.
-     *  Используется как fallback для n в ru2zh(): обдув, подогрев/вентиляция сиденья, дворники и т.п. -1 если нет. */
-    static int levelWordOf(String s) {
-        if (s.contains("единичк") || s.contains("единиц")) return 1;
-        if (s.contains("двойк") || s.contains("двоечк")) return 2;
-        if (s.contains("тройк") || s.contains("троечк")) return 3;
-        if (s.contains("четверк") || s.contains("четверочк")) return 4;
-        if (s.contains("пятерк") || s.contains("пятерочк")) return 5;
-        if (s.contains("шестерк") || s.contains("шестерочк")) return 6;
-        if (s.contains("семерк") || s.contains("семерочк")) return 7;
-        return -1;
-    }
-
-    static boolean isGuarded(String s) {
-        // negation: "не закрывай окно" must not actuate anything -> chat/stub
-        if (s.contains("не включ") || s.contains("не выключ") || s.contains("не откр") || s.contains("не закр")
-            || s.contains("не вруб") || s.contains("не выруб") || s.contains("не отключ") || s.contains("не убир")
-            || s.contains("не едь") || s.contains("не езжай") || s.contains("не гони"))
-            return true;
-        // question/narrative: "как пользоваться круизом", "почему окна потеют", "у меня дома…"
-        // are chat, not commands — they must never actuate hardware
-        return s.contains("как ") || s.contains("почему") || s.contains("зачем") || s.contains("что такое")
-            || s.contains("что значит") || s.contains("что лучше") || s.contains("расскажи") || s.contains("объясни")
-            || s.contains("можно ли") || s.contains("стоит ли") || s.contains("сколько стоит")
-            || s.contains("у меня") || s.contains("у нас") || s.contains("у соседа")
-            || s.contains("вчера") || s.contains("опасн") || s.contains("опасен")
-            || s.contains("оставил") || s.contains("забыл") || s.contains("потерял")
-            || s.contains("не работает") || s.contains("сломал") || s.contains("перегорел") || s.contains("разбил")
-            || (s.contains("когда ") && !s.contains("приедем") && !s.contains("доедем"));
-    }
-
-    static String ru2zh(String t) {
-        String s = t.toLowerCase().replace('ё', 'е');
-        if (isGuarded(s)) return null;
-        boolean off = isOff(s) || offWordOf(s);
-        String zone = zoneOf(s); if (zone.isEmpty()) zone = zoneCode(wakeZone);
-        String z = zhZone(zone);            // zone with speaker-seat default (seats, windows)
-        String zx = zhZone(zoneOf(s));      // EXPLICIT zone only, "" if not named (climate: canonical 把温度调到24度)
-        String grade = gradeOf(s);
-        int n = numIn(s);
-        if (n < 0) n = levelWordOf(s);   // «обдув на пятёрку»
-        String r;
-
-        if ((r = zhSeats(s, off, z, grade, n)) != null) return r;
-        if ((r = zhClimate(s, off, zx, grade, n)) != null) return r;
-        if ((r = zhWindowsRoof(s, off, z, n)) != null) return r;
-        if ((r = zhDoorsLocks(s, off, z)) != null) return r;
-        if ((r = zhLights(s, off, grade)) != null) return r;
-        if ((r = zhMirrorsSteerWipers(s, off, grade, n)) != null) return r;
-        if ((r = zhHudDisplays(s, off, grade)) != null) return r;
-        if ((r = zhAutoPilot(s, off, n)) != null) return r;      // unsafe-gated inside
-        if ((r = zhDriveEnergy(s, off, grade)) != null) return r;
-        if ((r = zhComfortModes(s, off, n)) != null) return r;
-        if ((r = zhConnectivity(s, off)) != null) return r;
-        if ((r = zhCameraDvr(s, off)) != null) return r;
-        if ((r = zhNavi(s, off, grade)) != null) return r;
-        if ((r = zhPhone(s)) != null) return r;
-        if ((r = zhSoundMedia(s, off, grade, n)) != null) return r;
-        if ((r = zhVehicleInfo(s)) != null) return r;
-        if ((r = zhSmartHome(s, off, n)) != null) return r;
-        if ((r = zhAppUi(s, off)) != null) return r;
-        if ((r = zhGeneralUi(s, n)) != null) return r;           // bare context words — last
-        return null; // not a known command
-    }
 
     // ---------------------------------------------------------------- carControl: seats
 
-    private static String zhSeats(String s, boolean off, String z, String grade, int n) {
-        boolean seat = s.contains("сиден") || s.contains("кресл") || s.contains("кресел") // "кресел" - fleeting vowel
-            // народные имена сиденья: «продув пердака», «подогрей жопу», «помассируй булки»
-            || s.contains("пердак") || s.contains("жоп") || s.contains("булк")
-            || s.contains("пятую точку") || s.contains("пятой точк") || s.contains("пятая точка");
-        // bare "включи подогрев" / "попогрейку" (без объекта) = подогрев сиденья говорящего;
-        // руль/зеркала/стёкла/холодильник имеют свои домены и исключаются
-        boolean bareHeat = (s.contains("подогрев") || s.contains("подогрей") || s.contains("попогрей") || s.contains("жопогрей"))
-            && !s.contains("рул") && !s.contains("зеркал") && !s.contains("стек")
-            && !s.contains("лоб") && !s.contains("холодильник") && !s.contains("морозилк") && !s.contains("двигател");
-        // heating / ventilation / massage
-        if (seat || s.contains("массаж") || s.contains("помассир") || s.contains("массир")
-            || s.contains("поясниц") || s.contains("спинк") || bareHeat) {
-            if (s.contains("подогре") || s.contains("обогре") || s.contains("грей") || s.contains("греть") || s.contains("тепл")) {
-                if (n >= 1 && n <= 3) return z + "座椅加热" + n + "档";
-                if (grade.equals("PLUS")) return z + "座椅加热调高一点";
-                if (grade.equals("MINUS")) return z + "座椅加热调低一点";
-                if (grade.equals("MAX")) return z + "座椅加热调到最高";
-                return (off ? "关闭" : "打开") + z + "座椅加热";
-            }
-            if (s.contains("вентил") || s.contains("продув") || s.contains("обдув")) {
-                if (n >= 1 && n <= 3) return z + "座椅通风" + n + "档";
-                if (grade.equals("PLUS")) return z + "座椅通风调高一点";
-                if (grade.equals("MINUS")) return z + "座椅通风调低一点";
-                return (off ? "关闭" : "打开") + z + "座椅通风";
-            }
-            if (s.contains("массаж") || s.contains("массир")) {
-                if (s.contains("режим") || s.contains("друго")) return "换个按摩模式";       // SWITCH_SEAT_MASSAGE_MODE
-                if (grade.equals("PLUS")) return "按摩强度调大一点";
-                if (grade.equals("MINUS")) return "按摩强度调小一点";
-                return (off ? "关闭" : "打开") + z + "座椅按摩";
-            }
-            if (s.contains("поясниц")) {                                                    // ADJUST_LUMBAR_POSITION
-                if (grade.equals("MINUS") || s.contains("слабее") || s.contains("ниже")) return "腰部支撑调低一点";
-                return "腰部支撑调高一点";
-            }
-            if (s.contains("спинк") || s.contains("наклон") || s.contains("разложи") || s.contains("откинь")) { // BACKREST
-                if (s.contains("разложи") || s.contains("положи")) return "放倒" + z + "座椅靠背";
-                if (s.contains("подними") && !s.contains("немного")) return "竖起" + z + "座椅靠背";
-                if (s.contains("назад") || s.contains("откинь") || s.contains("опусти") || grade.equals("PLUS"))
-                    return z + "座椅靠背角度调大一点";
-                return z + "座椅靠背角度调小一点";
-            }
-            if (s.contains("подушк")) {                                                     // CUSHION
-                return grade.equals("MINUS") || s.contains("ниже")
-                    ? z + "座椅坐垫调低一点" : z + "座椅坐垫调高一点";
-            }
-            if (s.contains("сохрани") || s.contains("запомни")) return "保存当前座椅位置";   // SWITCH_SAVE_SEAT_POSITION
-            if (s.contains("вперед") || s.contains("придвинь") || s.contains("пододвинь")) return z + "座椅往前调一点"; // ADJUST_SEAT_POSITION
-            if (s.contains("назад") || s.contains("отодвинь")) return z + "座椅往后调一点";
-            if (s.contains("выше") || s.contains("подним") || grade.equals("PLUS")) return z + "座椅位置调高一点";
-            if (s.contains("ниже") || s.contains("опусти") || grade.equals("MINUS")) return z + "座椅位置调低一点";
-        }
-        if (s.contains("подставк") || s.contains("подножк") || (s.contains("ног") && s.contains("опор"))) {
-            if (s.contains("длинн")) return "腿托调长一点";                                  // ADJUST_LEG_SUPPORT_LENGTH
-            if (s.contains("короче")) return "腿托调短一点";
-            if (off || s.contains("убери") || s.contains("сложи")) return "收起" + z + "脚托"; // SET_SEAT_FOOTREST
-            if (s.contains("ниже") || grade.equals("MINUS")) return "腿部支撑调低一点";       // ADJUST_LEG_SUPPORT_POSITION
-            if (s.contains("выше") || grade.equals("PLUS")) return "腿部支撑调高一点";
-            return "打开" + z + "脚托";
-        }
-        if (s.contains("вип") && s.contains("пассажир")) return (off ? "关闭" : "打开") + "尊享副驾"; // EXCLUSIVE_FRONT_PASSENGER
-        if (s.contains("комфортн") && (s.contains("посадк") || s.contains("выход")))
-            return (off ? "关闭" : "打开") + "舒适进出";                                     // OP_COMFORTABLE_ENTRY
-        return null;
-    }
-
     // ---------------------------------------------------------------- carControl: climate
-
-    private static String zhClimate(String s, boolean off, String z, String grade, int n) {
-        // home devices ("кондиционер дома") belong to smartHome, not car climate
-        if (s.contains("дома") || s.contains("домашн") || s.contains("квартир")) return null;
-        // defrost first — "обогрев стекла" must not fall into temperature
-        if (s.contains("обдув лоб") || s.contains("обдув стек") || s.contains("обогрев стек")
-            || s.contains("обогрев лоб") || s.contains("обогрев задн") || s.contains("разморозк")
-            || s.contains("отпот") || s.contains("запотел") || s.contains("потеют")) {
-            boolean rear = s.contains("задн");
-            return (off ? "关闭" : "打开") + (rear ? "后挡除霜" : "前挡除霜");
-        }
-        // complaints -> temperature ("мне холодно" = WARMER, "жарко/душно" = cooler)
-        // "холодно( в машине)" — жалоба = ТЕПЛЕЕ; "холоднее/похолоднее" — просьба = ХОЛОДНЕЕ
-        if (s.contains("замерз") || s.contains("продрог") || s.contains("тепла хочу") || s.contains("хочу тепла")
-            || s.contains("дубак") || s.contains("колотун") || s.contains("холодрыг")
-            || (s.contains("поддай") && (s.contains("жар") || s.contains("тепл")))
-            || ((s.contains("холодно ") || s.endsWith("холодно")) && !s.contains("холоднее")))
-            return "温度调高一点";
-        if (s.contains("жарко") || s.contains("душно") || s.contains("мне жарко") || s.contains("парилка")
-            || s.contains("запарил") || s.contains("вспотел") || s.contains("сауна") || s.contains("как в бане")
-            || s.contains("пекло") || s.contains("духота")) return "温度调低一点";
-        if (s.contains("прохладн")) return "温度调低一点";
-        // «быстро/срочно/максимально охлади» -> 强力制冷 (мощное охлаждение), иначе обычное 制冷
-        boolean strong = s.contains("быстр") || s.contains("скорее") || s.contains("срочно") || s.contains("сильн")
-            || s.contains("максимал") || s.contains("на всю") || s.contains("мощн") || s.contains("резко");                                    // "сделай прохладнее"
-        if ((s.contains("прогрей") || s.contains("согрей") || s.contains("натопи"))
-            && (s.contains("салон") || s.contains("машин") || s.contains("тачк")))
-            return strong ? "打开强力制热模式" : "打开制热模式";                            // «быстро прогрей» -> 强力制热
-        if (s.contains("охлади") || s.contains("остуди")) return strong ? "打开强力制冷模式" : "打开制冷模式";
-        if (s.contains("проветри") || (s.contains("свеж") && s.contains("воздух"))) return "打开外循环"; // "свежий воздух"
-        if ((s.contains("очист") && s.contains("воздух")) || (s.contains("очистител") && !s.contains("стекл"))
-            || s.contains("ионизац"))                                                        // не «стеклоОЧИСТИТЕЛи»
-            return (off ? "关闭" : "打开") + "空气净化";                                     // mode 空气净化
-        // "дует слишком сильно / слабо" -> fan complaints (но не про ветер на улице)
-        if (s.contains("дует") && !s.contains("улиц") && !s.contains("ветер")) {
-            if (s.contains("сильн") || s.contains("слишком")) return "风量调小一点";
-            if (s.contains("слаб") || s.contains("еле")) return "风量调大一点";
-        }
-        // "печка" = heater ("отопление", "обогреватель")
-        if (s.contains("печк") || s.contains("отоплен") || s.contains("обогреватель")) {
-            if (off) return "关闭空调";
-            if (grade.equals("PLUS")) return "温度调高一点";
-            if (grade.equals("MINUS")) return "温度调低一点";
-            return "打开制热模式";
-        }
-        // bare "включи обогрев" (без объекта — зеркала/руль/стёкла/сиденья ловятся в других доменах)
-        if (s.contains("обогрев") && !s.contains("зеркал") && !s.contains("руль") && !s.contains("рулев")
-            && !s.contains("сиден") && !s.contains("кресл"))
-            return off ? "关闭空调" : "打开制热模式";
-        // temperature (excludes seat/steering/mirror/fridge heat — handled elsewhere)
-        if ((s.contains("температур") || s.contains("градус") || s.contains("теплее") || s.contains("холодн"))
-            && !s.contains("сиден") && !s.contains("кресл") && !s.contains("руль") && !s.contains("зеркал")
-            && !s.contains("холодильник") && !s.contains("морозилк") && !s.contains("холодос") && !s.contains("цветов")) {
-            if (s.contains("синхрон") || s.contains("одинаков")) return off ? "关闭温度同步" : "温度同步"; // TEMPERATURE_SYNC
-            if (n >= 16 && n <= 33) return "把" + z + "温度调到" + n + "度";
-            if (grade.equals("MAX")) return "温度调到最高";
-            if (grade.equals("MIN")) return "温度调到最低";
-            // "теплее на 2 градуса" -> relative step with value
-            if (grade.equals("PLUS") || plusWordOf(s)) return (n >= 1 && n <= 8 && s.contains("на ")) ? "温度调高" + n + "度" : "温度调高一点";
-            if (grade.equals("MINUS") || minusWordOf(s)) return (n >= 1 && n <= 8 && s.contains("на ")) ? "温度调低" + n + "度" : "温度调低一点";
-            return null;
-        }
-        // airflow direction: "дуй в лицо/в ноги/на стекло"
-        if (s.contains("дуй") || s.contains("обдув в") || s.contains("обдув на") || s.contains("поток в")
-            || s.contains("направь воздух") || ((s.contains("обдув") || s.contains("поток")) && (s.contains("лицо") || s.contains("ноги")))) {
-            // «стекло/лобовое» — не направление обдува, а режим разморозки (единственный обдув стекла в NLU);
-            // «обдув на стекло и ноги» = одна команда за фразу -> разморозка
-            if (s.contains("стекл") || s.contains("лобов")) return (off ? "关闭" : "打开") + "前挡除霜";
-            // «тело/грудь/корпус» — не значение каталога (面|脚|吹面吹脚), считаем верхом = лицо
-            boolean face = s.contains("лицо") || s.contains("лиц") || s.contains("на меня") || s.contains("грудь")
-                || s.contains("тело") || s.contains("корпус") || s.contains("торс")
-                || s.contains("в рот") || s.contains("морд") || s.contains("в харю") || s.contains("в щи");
-            boolean feet = s.contains("ноги") || s.contains("ног");
-            if (face && feet) return "空调吹面吹脚";
-            if (face) return "空调吹面";
-            if (feet) return "空调吹脚";
-        }
-        if (s.contains("качани") || s.contains("шторк обдув") || s.contains("扫风"))
-            return off ? "关闭扫风" : (s.contains("друго") || s.contains("смени") ? "换个扫风模式" : "打开扫风");
-        // fan speed (exclude defrost + seat contexts, as in reference)
-        boolean fanCtx = !s.contains("лобов") && !s.contains("стекл") && !s.contains("сиден") && !s.contains("кресл");
-        if (fanCtx && (s.contains("обдув") || s.contains("вентилятор") || s.contains("дуй")
-            || (s.contains("поток") && (s.contains("воздух") || s.contains("сильн") || s.contains("слаб")))
-            || ((s.contains("скорост") || s.contains("сил")) && s.contains("вент")))) {   // «дуй сильнее», «поток воздуха слабее»
-            if (n >= 1 && n <= 7) return "风量调到" + n + "档";
-            if (grade.equals("MAX") || s.contains("на полную")) return "风量调到最大";
-            if (grade.equals("MIN")) return "风量调到最小";
-            if (grade.equals("PLUS") || plusWordOf(s) || s.contains("усил") || s.contains("быстр")) return "风量调大一点";
-            if (grade.equals("MINUS") || minusWordOf(s) || s.contains("ослаб") || s.contains("медленн")) return "风量调小一点";
-            return off ? "关闭空调风量" : "打开空调风量";
-        }
-        if (s.contains("рециркул") || s.contains("циркуляц") || (s.contains("забор") && s.contains("воздух"))) {
-            if (s.contains("переключ") || s.contains("смени")) return "切换内外循环";        // SWITCH_AIR_CIRCULATION
-            return off ? "打开外循环" : "打开内循环";                                        // SET_AIR_CIRCULATION
-        }
-        // AC mode
-        if (s.contains("климат") || s.contains("кондиц") || s.contains("кондер") || s.contains("кондей")
-            || s.contains("кондишн") || s.contains("кондишк")) {
-            if (s.contains("авто")) return "打开空调自动模式";                                // SET_AIR_CONDITIONER_MODE
-            if (s.contains("охлажд")) return strong ? "打开强力制冷模式" : "打开制冷模式";
-            if (s.contains("обогрев") || s.contains("нагрев")) return strong ? "打开强力制热模式" : "打开制热模式";
-            if (s.contains("эконом") || s.contains("энергосбер")) return "打开空调节能模式"; // mode 节能
-            if (s.contains("осушен") || s.contains("влажн")) return "打开除湿模式";
-            if (n >= 16 && n <= 33) return "把温度调到" + n + "度";                            // "кондиционер на 22"
-            // "климат/климат-контроль" = автоматический климат-контроль; "кондиционер" = просто AC.
-            // Выключение у обоих одно: 关闭空调. Явная зона важнее авторежима ("климат пассажиру").
-            if (s.contains("климат") && !off && z.isEmpty()) return "打开空调自动模式";        // SET_AIR_CONDITIONER_MODE
-            // «кондиционер/кондей» = КОМПРЕССОР A/C, не вся установка: mappingRule нормализует 制冷 -> AC.
-            // «выключи кондиционер» гасит только охлаждение, вентилятор/печка остаются; «климат» = 空调 целиком.
-            if (!s.contains("климат") && z.isEmpty()) return off ? "关闭制冷模式" : "打开制冷模式";
-            return (off ? "关闭" : "打开") + z + "空调";                                     // OP_AIR_CONDITIONER (z = explicit zone or "")
-        }
-        // fragrance
-        // "запах" только с глаголом действия — "странный запах в машине" это болтовня
-        if (s.contains("ароматизат") || s.contains("аромат") || s.contains("парфюм")
-            || (s.contains("запах") && (isOn(s) || off || s.contains("смени") || s.contains("убери") || s.contains("сделай")))) {
-            if (s.contains("смени") || s.contains("друго")) return "换个香氛";               // SWITCH_FRAGRANCE
-            return off ? "关闭香氛" : "打开香氛";                                            // SET_FRAGRANCE
-        }
-        return null;
-    }
 
     // ---------------------------------------------------------------- carControl: windows / roof
 
-    private static String zhWindowsRoof(String s, boolean off, String z, int n) {
-        // "окон" (gen.pl.) does NOT contain "окн" — fleeting vowel, match both forms
-        // "стекло" is the everyday word for a car window ("опусти стекло") — but only with
-        // open/close verbs and outside washer/defrost contexts
-        boolean glass = s.contains("стекл") && !s.contains("помой") && !s.contains("омыват")
-            && !s.contains("обогрев") && !s.contains("обдув") && !s.contains("лобов")
-            && !s.contains("протри") && !s.contains("вытри") && !s.contains("запотел")
-            && (s.contains("подним") || s.contains("опусти") || s.contains("приоткр")
-                || s.contains("закр") || s.contains("откр") || s.contains("вверх") || s.contains("вниз")
-                || s.contains("заблок") || s.contains("разблок") || s.contains("блокир"));
-        boolean win = (s.contains("окн") && !s.contains("аудиокн"))  // "аудиОКНига" - не окно!
-            || s.contains("окон") || s.contains("окош") || s.contains("форточ")
-            || s.contains("стеклоподъемн") || glass;
-        if (win && !s.contains("шторк") && !s.contains("солнцезащит")) {
-            if (s.contains("блокир") || s.contains("замок")) {                                 // OP_WINDOW_LOCK ("заблокируй/разблокируй стеклоподъемники")
-                boolean disable = off || s.contains("разблок") || s.contains("сними");
-                return (disable ? "关闭" : "打开") + "车窗锁";
-            }
-            if (s.contains("в дождь") || s.contains("дожд")) {                                 // OP_RAIN_CLOSE_WINDOW
-                // "закрывай окна в дождь" = ENABLE the feature; only explicit off disables
-                boolean disable = s.contains("выключ") || s.contains("отключ") || s.contains("не закрывай");
-                return (disable ? "关闭" : "打开") + "雨天自动关窗";
-            }
-            if (s.contains("при закрыт") || s.contains("на охран")) {                          // OP_LOCK_CLOSE_WINDOW
-                boolean disable = s.contains("выключ") || s.contains("отключ");                // "закрой окна на охране" = ENABLE
-                return (disable ? "关闭" : "打开") + "锁车关窗";
-            }
-            if (s.contains("приоткр") || s.contains("щелочк") || s.contains("щель")) return z + "车窗留缝";
-            int p = percentOf(s);
-            if (p == 50) return z + "车窗开一半";
-            if (p > 0) return z + "车窗开到百分之" + p;
-            // "опусти" = OPEN (window goes down), "подними/вверх" = CLOSE — inverse of isOff!
-            boolean close = s.contains("подним") || s.contains("закр") || s.contains("выключ") || s.contains("вверх");
-            return (close ? "关闭" : "打开") + z + "车窗";
-        }
-        // "крыша/панорама" = люк, но НЕ "крышка багажника/бензобака/зарядки" и не шторка
-        if ((s.contains("люк") || s.contains("панорам")
-             || (s.contains("крыш") && !s.contains("багажник") && !s.contains("заряд")
-                 && !s.contains("бак") && !s.contains("капот")))
-            && !s.contains("шторк") && !s.contains("солнцезащит")) {
-            int p = percentOf(s);
-            if (p == 50) return "天窗开一半";
-            return off ? "关闭天窗" : "打开天窗";
-        }
-        if (s.contains("шторк") || s.contains("солнцезащит")) {
-            if (win || s.contains("боков") || s.contains("задн") || s.contains("сзади"))
-                return (off ? "关闭" : "打开") + "车窗遮阳帘";                                // SET_WINDOW_SUN_SHADE
-            return off ? "关闭遮阳帘" : "打开遮阳帘";                                        // SET_SUN_SHADE
-        }
-        if (s.contains("все") && (s.contains("открой") || s.contains("закрой"))
-            && !s.contains("приложен") && !win)
-            return off ? "一键全关" : "一键全开";                                            // OPEN/CLOSE_ALL_ONE_KEY
-        return null;
-    }
-
     // ---------------------------------------------------------------- carControl: doors / trunks / locks
-
-    private static String zhDoorsLocks(String s, boolean off, String z) {
-        if (s.contains("багажник") && !s.contains("свет") && !s.contains("лампа")) {
-            if (s.contains("передн") || s.contains("фрунк")) return unsafeGate(off ? "关闭前备箱" : "打开前备箱"); // OP_FRUNK
-            if (s.contains("верхн")) return unsafeGate(off ? "关闭上尾门" : "打开上尾门");   // OP_UPPER_TAILGATE
-            if (s.contains("нижн") || s.contains("борт")) return unsafeGate(off ? "关闭下尾门" : "打开下尾门"); // OP_LOWER_TAILGATE
-            return unsafeGate(off ? "关闭后备箱" : "打开后备箱");                            // OP_TRUNK
-        }
-        if (s.contains("капот")) return unsafeGate(off ? "关闭前备箱" : "打开前备箱");       // OP_FRUNK
-        if (s.contains("детск") && (s.contains("замок") || s.contains("блокировк")))
-            return (off ? "关闭" : "打开") + "儿童锁";                                       // OP_CHILD_SAFETY_LOCK
-        if (s.contains("двер")) {
-            if (s.contains("запр") || s.contains("отопр") || s.contains("заблок") || s.contains("разблок")
-                || s.contains("замкни") || s.contains("замок")) {
-                boolean unlock = s.contains("отопр") || s.contains("разблок") || s.contains("открой");
-                return unsafeGate(unlock ? "解锁" : "锁车");                                 // OP_DOOR_LOCK
-            }
-            if (s.contains("холодильник")) return (off ? "关闭" : "打开") + "冰箱门";        // SET_REFRIGERATOR_DOOR
-            return unsafeGate((off ? "关闭" : "打开") + z + "车门");                         // OP_CAR_DOOR
-        }
-        if ((s.contains("запр") || s.contains("отопр") || s.contains("заблокируй") || s.contains("разблокируй")
-             || s.contains("закрой") || s.contains("открой"))
-            && (s.contains("машин") || s.contains("автомобил") || s.contains("тачк")
-                || s.contains("замок"))) {  // "закрой (на) замок" — детский/оконный замок ловятся раньше
-            boolean unlock = s.contains("отопр") || s.contains("разблок") || s.contains("открой");
-            return unsafeGate(unlock ? "解锁" : "锁车");                                     // OP_DOOR_LOCK ("закрой машину")
-        }
-        // "открой/закрой зарядку, бак" без слова "лючок" — тоже крышки портов
-        // (только с откр/закр: "включи зарядку" — НЕ крышка, уходит дальше/в чат)
-        if (s.contains("лючок") || s.contains("порт зарядк") || (s.contains("зарядн") && s.contains("порт"))
-            || ((s.contains("откр") || s.contains("закр"))
-                && (s.contains("заряд") || s.contains("бак") || s.contains("заправ")))) {
-            // «бак для зарядки», «зарядное отверстие» — порт зарядки: слово «заряд» важнее «бака»
-            if (s.contains("заряд")) return (off ? "关闭" : "打开") + "充电口";            // OP_CHARGING_PORT_COVER
-            if (s.contains("бензо") || s.contains("бак") || s.contains("топлив") || s.contains("заправ"))
-                return (off ? "关闭" : "打开") + "油箱盖";                                   // OP_FUEL_TANK_CAP ("заправочный лючок")
-            return (off ? "关闭" : "打开") + "充电口";                                       // голый «лючок» = зарядка
-        }
-        if (s.contains("подход") && s.contains("разблок")) return (off ? "关闭" : "打开") + "近车自动解锁"; // OP_APPROACH_UNLOCK
-        if ((s.contains("уход") || s.contains("отход")) && (s.contains("закрыв") || s.contains("блокир")))
-            return (off ? "关闭" : "打开") + "离车自动闭锁";                                 // OP_LEAVE_LOCK
-        return null;
-    }
 
     // ---------------------------------------------------------------- carControl: lights
 
-    private static String zhLights(String s, boolean off, String grade) {
-        if (s.contains("подсветк") || s.contains("атмосферн") || s.contains("амбиент") || s.contains("эмбиент")
-            || s.contains("неонов") || s.contains("неоновую")) {
-            if (s.contains("настройк")) return "打开氛围灯设置";                              // CONTROL_AMBIENT_LIGHTING_PAGE
-            String c = colorOf(s);
-            if (!c.isEmpty()) return "氛围灯调成" + zhColor(c);                              // SET_MOOD_LIGHTS_COLOR
-            if (s.contains("друго") && s.contains("цвет")) return "氛围灯换个颜色";           // SWITCH_M_L_COLOR
-            if (s.contains("эффект")) return "氛围灯换个灯效";                                // SWITCH_M_L_EFFECT
-            if (s.contains("тем") && s.contains("подсветк") && (s.contains("друг") || s.contains("смени")))
-                return "氛围灯换个主题";                                                     // SET_MOOD_LIGHTS_THEME
-            if (s.contains("такт") || s.contains("ритм") || s.contains("музык")) return "打开氛围灯律动模式"; // SET_MOOD_LIGHTS_MODE
-            if (s.contains("градиент") || s.contains("перелив")) return "打开氛围灯渐变效果"; // SET_MOOD_LIGHTS_GRADIENT
-            if (s.contains("ярче") || grade.equals("PLUS") || plusWordOf(s)) return "氛围灯调亮一点"; // SET_MOOD_LIGHTS_BRIGHTNESS
-            if (s.contains("темнее") || s.contains("притуш") || s.contains("приглуш")
-                || grade.equals("MINUS") || minusWordOf(s)) return "氛围灯调暗一点";
-            return off ? "关闭氛围灯" : "打开氛围灯";                                        // OP_MOOD_LIGHTS
-        }
-        if (s.contains("световое шоу") || s.contains("светомузык") || s.contains("шоу свет"))
-            return (off ? "关闭" : "打开") + "音乐灯光秀";                                    // CONTROL_LIGHT_SHOW
-        boolean beamVerb = s.contains("свет") || s.contains("включ") || s.contains("выключ") || s.contains("вруб") || s.contains("выруб");
-        // авто-режим фар: в dm-каталоге есть устройства 自动近光灯/自动远光灯 (OPEN/CLOSE).
-        // «автомат»/«авто режим» — не «авто» голое, чтобы «свет в автомобиле» сюда не попал
-        if ((s.contains("фар") || s.contains("ближн") || s.contains("дальн") || s.contains("свет"))
-            && (s.contains("автомат") || s.contains("авто режим") || s.contains("авторежим"))
-            && !s.contains("подсветк")) {
-            boolean high = s.contains("дальн");
-            return (off ? "关闭" : "打开") + (high ? "自动远光灯" : "自动近光灯");
-        }
-        if (s.contains("дальн") && beamVerb) return off ? "关闭远光灯" : "打开远光灯";        // OP_HIGH_BEAM ("вруби дальний")
-        // fallback: «фары в авто» с голым «авто» (не «автомат») — лучше в чат, чем включить ближний
-        if ((s.contains("фар") || s.contains("ближн")) && s.contains("авто")) return null;
-        if ((s.contains("ближн") && beamVerb) || (s.contains("фары") && !s.contains("дальн"))) {
-            if (s.contains("выше") || s.contains("ниже") || s.contains("высот"))              // SET_DIPPED_BEAM_HEIGHT
-                return s.contains("ниже") || grade.equals("MINUS") ? "近光灯高度调低一点" : "近光灯高度调高一点";
-            return off ? "关闭近光灯" : "打开近光灯";                                        // OP_DIPPED_BEAM
-        }
-        if (s.contains("аварийк") || s.contains("аварийн")) return off ? "关闭双闪" : "打开双闪"; // OP_WARNING_LIGHT
-        if (s.contains("противотуман") || s.contains("туманк")) return (off ? "关闭" : "打开") + "后雾灯"; // OP_REAR_FOG_LIGHT
-        if (s.contains("габарит")) return (off ? "关闭" : "打开") + "示廓灯";                 // OP_OUTLINE_LIGHT
-        if (s.contains("стояночн") || s.contains("позиционн") || s.contains("ходов") || s.contains("дхо"))
-            return (off ? "关闭" : "打开") + "位置灯";                                        // OP_SIDE_LIGHTS (+ДХО: ближайший интент)
-        if (s.contains("задн") && (s.contains("фонар") || s.contains("фонарь"))) return (off ? "关闭" : "打开") + "尾灯"; // OP_TAILLIGHT
-        if (s.contains("багажник") && (s.contains("свет") || s.contains("ламп"))) return (off ? "关闭" : "打开") + "后备箱灯"; // OP_TRUNK_LIGHT
-        if ((s.contains("притуш") || s.contains("приглуш")) && s.contains("свет")) return "氛围灯调暗一点";
-        // Салонный свет (OP_READ_LIGHTS). Проверено на авто: голое 阅读灯 НЕ работает, нужна позиция:
-        //   打开车内所有灯光 / 关闭车内所有灯光 — весь свет в салоне («включи свет», «весь свет»)
-        //   打开右后阅读灯 и т.п.          — лампа чтения с позицией (左前/右前/左后/右后/前排/后排)
-        // (нужен глагол действия: "я люблю свет луны" — болтовня; "зажги/погаси свет" тоже сюда)
-        if ((s.contains("свет") || s.contains("освещен") || s.contains("ламп") || s.contains("плафон"))
-            && !s.contains("светл") && !s.contains("свето") && !s.contains("светк") && !s.contains("дома") // «(пад)светку» — не сюда
-            && (isOn(s) || off || s.contains("зажги") || s.contains("вруб") || s.trim().equals("свет"))) {
-            String on = off ? "关闭" : "打开";
-            String zc = zoneOf(s);
-            boolean all = zc.equals("ALL") || s.contains("весь") || s.contains("везде");
-            boolean lamp = s.contains("чтени") || s.contains("ламп") || s.contains("плафон");
-            if (all) return on + "车内所有灯光";
-            if (lamp || !zc.isEmpty()) {                       // лампа чтения / свет с зоной -> позиция
-                if (zc.isEmpty()) zc = zoneCode(wakeZone);       // «включи лампу» = лампа над говорящим
-                return on + zhReadZone(zc) + "阅读灯";
-            }
-            return on + "车内所有灯光";                          // голое «включи свет» = весь салон
-        }
-        return null;
-    }
-
-    /** Zone code -> позиция лампы чтения (штатный NLU: 左前/右前/左后/右后/前排/后排). */
-    private static String zhReadZone(String code) {
-        if ("DRIVER".equals(code)) return "左前";
-        if ("PASSENGER".equals(code)) return "右前";
-        if ("REAR_LEFT".equals(code)) return "左后";
-        if ("REAR_RIGHT".equals(code)) return "右后";
-        if ("REAR".equals(code)) return "后排";
-        if ("FRONT".equals(code)) return "前排";
-        return "";
-    }
-
     // ---------------------------------------------------------------- carControl: mirrors / steering / wipers
-
-    private static String zhMirrorsSteerWipers(String s, boolean off, String grade, int n) {
-        if (s.contains("зеркал")) {
-            if (s.contains("обогре") || s.contains("подогре") || s.contains("грей") || s.contains("греть"))
-                return (off ? "关闭" : "打开") + "后视镜加热";                                // REAR_MIRROR_WARM
-            if (s.contains("сложи") || s.contains("сверни")) return "折叠后视镜";             // OP_REAR_MIRROR_CONTROL
-            if (s.contains("разложи") || s.contains("разверни")) return "展开后视镜";
-            if (s.contains("автоскладыв") || s.contains("автомат")) return (off ? "关闭" : "打开") + "后视镜自动折叠"; // OP_REAR_MIRROR_AUTO
-            if (s.contains("выше") || s.contains("вверх")) return "后视镜向上调一点";          // ADJ_REARVIEW_MIRROR
-            if (s.contains("ниже") || s.contains("вниз")) return "后视镜向下调一点";
-            if (s.contains("влево") || s.contains("левее")) return "后视镜向左调一点";
-            if (s.contains("вправо") || s.contains("правее")) return "后视镜向右调一点";
-            if (s.contains("стриминг") || s.contains("камер")) return (off ? "关闭" : "打开") + "流媒体后视镜"; // OP_STREAM_MEDIA_REAR_VIEW
-        }
-        if (s.contains("руль") || s.contains("руля") || s.contains("рулев")) {
-            if (s.contains("выше") || s.contains("подним")) return "方向盘调高一点";           // ADJ_STEER_DIRECTION
-            if (s.contains("ниже") || s.contains("опусти")) return "方向盘调低一点";
-            if (s.contains("легче") || s.contains("тяжелее") || s.contains("усили"))          // SET_STEERING_STYLE
-                return s.contains("легче") ? "转向调到轻便模式" : "转向调到运动模式";
-            // руль-подогрев только по явным словам тепла — "зафиксируй руль" не должен греть
-            if (s.contains("подогре") || s.contains("обогре") || s.contains("грей") || s.contains("греть") || s.contains("тепл")) {
-                if (n >= 1 && n <= 3) return "方向盘加热调到" + n + "档";                      // SET_STEER_WARM
-                if (grade.equals("PLUS")) return "方向盘加热调高一点";
-                return off ? "关闭方向盘加热" : "打开方向盘加热";                             // OP_STEER_WARM
-            }
-            return null;
-        }
-        if ((s.contains("помой") && (s.contains("лобов") || s.contains("стекл"))) || s.contains("омыват") || s.contains("брызни"))
-            return "喷水洗玻璃";                                                             // WASH_WIPER
-        if (s.contains("датчик") && s.contains("дожд"))                                       // SET_WIPER_SENSITIVITY (без слова "дворники")
-            return grade.equals("MINUS") ? "雨刮灵敏度调低一点" : "雨刮灵敏度调高一点";
-        if ((s.contains("вытри") || s.contains("протри") || s.contains("смахни")) && s.contains("стекл"))
-            return "打开雨刮";                                                                // "протри/смахни капли со стекла"
-        if (s.contains("дворник") || s.contains("щетк") || s.contains("стеклоочистит")) {
-            if (s.contains("сервис") || s.contains("ремонт") || s.contains("замен"))
-                return (off ? "关闭" : "打开") + "雨刮维修模式";                              // REPAIR_WIPER
-            if (s.contains("чувствительн") || s.contains("датчик"))                           // SET_WIPER_SENSITIVITY
-                return grade.equals("MINUS") ? "雨刮灵敏度调低一点" : "雨刮灵敏度调高一点";
-            if (n >= 1 && n <= 4) return "雨刮调到" + n + "档";                                // SET_WIPER_SPEED
-            if (s.contains("быстрее") || grade.equals("PLUS") || grade.equals("MAX")) return "雨刮快一点";
-            if (s.contains("медленн") || grade.equals("MINUS")) return "雨刮慢一点";
-            return off ? "关闭雨刮" : "打开雨刮";
-        }
-        return null;
-    }
 
     // ---------------------------------------------------------------- carControl: HUD / displays
 
-    private static String zhHudDisplays(String s, boolean off, String grade) {
-        // "главный экран"/"предыдущий экран" are UI navigation, not display control
-        if (s.contains("главн") || s.contains("предыдущ") || s.contains("рабочий стол")) return null;
-        if ((s.contains("экран") || s.contains("дисплей")) && (s.contains("ко мне") || s.contains("к водителю") || s.contains("на меня")))
-            return null;                                                                      // наклона экрана к водителю нет — не выдавать 横屏
-        if (s.contains("hud") || s.contains("проекц") || s.contains("хад") || s.contains("худ")) {
-            if (s.contains("ярк") || s.contains("ярч")) return grade.equals("MINUS") || s.contains("темнее") // SET_HUD_BRIGHTNESS
-                ? "HUD亮度调低一点" : "HUD亮度调高一点";
-            if (s.contains("угол") || s.contains("наклон"))                                   // SET_HUD_ANGLE
-                return s.contains("ниже") || grade.equals("MINUS") ? "HUD角度调低一点" : "HUD角度调高一点";
-            if (s.contains("выше") || s.contains("подним")) return "HUD高度调高一点";          // SET_HUD_HEIGHT
-            if (s.contains("ниже") || s.contains("опусти")) return "HUD高度调低一点";
-            if (s.contains("цвет")) return "切换HUD颜色模式";                                  // SWITCH_HUD_COLOR_MODE
-            if (s.contains("режим") || s.contains("вид")) return "切换HUD显示模式";            // SET_HUD_MODE / SWITCH_HUD_DISPLAY_MODE
-            if (s.contains("настройк")) return "打开抬头显示设置";                             // CONTROL_HUD_PAGE
-            return off ? "关闭抬头显示" : "打开抬头显示";                                     // OP_HUD
-        }
-        if (s.contains("экран") || s.contains("дисплей")) {
-            if (s.contains("пассажир") && (s.contains("угол") || s.contains("наклон") || s.contains("выше") || s.contains("ниже")))
-                return grade.equals("MINUS") || s.contains("ниже")                             // SET_PDISPLAY_ANGLE
-                    ? "副驾屏幕角度调低一点" : "副驾屏幕角度调高一点";
-            if (s.contains("автояркост") || (s.contains("авто") && s.contains("ярк")))
-                return (off ? "关闭" : "打开") + "自动亮度";                                  // OP_AUTO_DISPLAY_BRIGHTNESS
-            if (s.contains("яркост") || s.contains("ярче") || s.contains("темнее")) {          // SET_DISPLAY_BRIGHTNESS
-                if (grade.equals("MAX")) return "屏幕亮度调到最大";
-                if (grade.equals("MIN")) return "屏幕亮度调到最小";
-                return s.contains("темнее") || s.contains("притуш") || s.contains("приглуш")
-                    || grade.equals("MINUS") || minusWordOf(s) ? "屏幕调暗一点" : "屏幕调亮一点";
-            }
-            if (s.contains("цветов") && s.contains("температур"))                              // SET_DISPLAY_COLOR_TEMPERATURE
-                return s.contains("холодн") ? "屏幕色温调冷一点" : "屏幕色温调暖一点";
-            if (s.contains("защит") && s.contains("глаз")) return (off ? "关闭" : "打开") + "护眼模式"; // SET_DISPLAY_EYE_PROTECTION
-            if (s.contains("ночн")) return "切换到夜间模式";                                   // SET_DISPLAY_MODE
-            if (s.contains("дневн")) return "切换到白天模式";
-            if (s.contains("горизонт") || s.contains("поверни") || s.contains("переверни")) return "切换到横屏"; // SET_DISPLAY_ORIENTATION
-            if (s.contains("вертикал")) return "切换到竖屏";
-            if (s.contains("очист") || s.contains("протер") || s.contains("протр"))
-                return (off ? "关闭" : "打开") + "屏幕清洁模式";                              // OP_DISPLAY_CLEAN
-            if (s.contains("усыпи") || s.contains("погаси")) return "息屏";                    // DISPLAY_SLEEP
-            if (s.contains("разбуди") || s.contains("проснись")) return "亮屏";                // DISPLAY_UNSLEEP
-            return off ? "关闭屏幕" : "打开屏幕";                                             // OP_DISPLAY_POWER
-        }
-        if (s.contains("шрифт")) return grade.equals("MINUS") || s.contains("мельче")          // SET_FONT_SIZE
-            ? "字体调小一点" : "字体调大一点";
-        // bare "яркость" without an object -> screen brightness (подсветка/HUD ловятся раньше)
-        if (s.contains("яркост")) {
-            if (s.contains("темнее") || grade.equals("MINUS") || minusWordOf(s)) return "屏幕调暗一点";
-            if (s.contains("ярче") || grade.equals("PLUS") || plusWordOf(s)) return "屏幕调亮一点";
-            return null;   // без направления не действуем: raw-гипотеза с искажённым глаголом не должна дать ЯРЧЕ
-        }
-        // bare "цветовая температура" без слова "экран"
-        if (s.contains("цветов") && s.contains("температур"))
-            return s.contains("холодн") ? "屏幕色温调冷一点" : "屏幕色温调暖一点";
-        return null;
-    }
-
     // ---------------------------------------------------------------- autoPilot (ALL unsafe)
-
-    private static String zhAutoPilot(String s, boolean off, int n) {
-        if (s.contains("круиз")) {
-            if (n >= 30 && n <= 150) return unsafeGate("巡航速度调到" + n);                   // SET_CRUISE_CAR_SPEED
-            if (s.contains("адаптивн")) return unsafeGate((off ? "关闭" : "打开") + "自适应巡航"); // OP_ACC
-            return unsafeGate((off ? "关闭" : "打开") + "自适应巡航");
-        }
-        if (s.contains("автопилот") || (s.contains("автоматическ") && s.contains("вожден")))
-            return unsafeGate((off ? "关闭" : "打开") + "自动驾驶");                          // OP_AUTO_DRIVE
-        if (s.contains("iacc") || s.contains("иакк")) return unsafeGate((off ? "关闭" : "打开") + "IACC"); // OP_IACC
-        if (s.contains("nca") || s.contains("навигационн") && s.contains("пилот"))
-            return unsafeGate((off ? "关闭" : "打开") + "领航辅助");                          // OP_NCA
-        if (s.contains("дистанц")) {                                                          // "сократи дистанцию", "дистанция побольше"
-            if (n >= 1 && n <= 4) return unsafeGate("跟车距离调到" + n + "档");                // SET_CRUISE_FOLLOW_GAP
-            return unsafeGate(s.contains("мень") || s.contains("ближе") || s.contains("сократи")
-                || s.contains("помень") ? "跟车距离调小一点" : "跟车距离调大一点");
-        }
-        if (s.contains("следуй") || s.contains("следован")) {
-            if (off || s.contains("отмени") || s.contains("не следуй")) return unsafeGate("取消跟车"); // CANCEL_FOLLOW_CAR
-            return unsafeGate("跟着前车走");                                                 // CONTROL_FOLLOW_CAR
-        }
-        if (s.contains("перестро") || s.contains("полос")) {                                  // CONTROL_LANE_CHANGE ("полоса левее")
-            if (s.contains("лев")) return unsafeGate("向左变道");
-            if (s.contains("прав")) return unsafeGate("向右变道");
-            int i = ordinalIn(s);
-            if (i > 0) return unsafeGate("走第" + i + "车道");                                // INDEX_LANE_DRIVE
-        }
-        if (s.contains("держи полос") || s.contains("держись полос")) return unsafeGate("保持车道行驶"); // KEEP_LANE_DRIVE
-        if (s.contains("обгони")) return unsafeGate("超过前车");                              // OVERTAKE_SPECIFIC_CAR
-        if (s.contains("ограничен") && s.contains("скорост"))
-            return unsafeGate((off ? "关闭" : "打开") + "限速提醒");                          // SPEED_LIMIT_CONTROL
-        if (s.contains("парк")) {
-            if (s.contains("запомни")) return unsafeGate("开始记忆泊车");                      // MEMORIZE_DRIVING_CONTROL
-            if (s.contains("удали") || s.contains("забудь")) return unsafeGate("删除记忆泊车路线"); // DELETE_DRIVE_MEMORY
-            if (s.contains("пауз") || s.contains("подожди")) return unsafeGate("暂停泊车");    // PARKING_CONTROL
-            if (s.contains("продолж")) return unsafeGate("继续泊车");
-            if (s.contains("выезжай") || s.contains("выехать") || s.contains("выйди") || s.contains("выгони")
-                || s.contains("выеду")) return unsafeGate("泊出");                            // DRIVING_OUT
-            if (s.contains("заезжай") || s.contains("это место")) return unsafeGate("泊入车位"); // PARK_IN
-            if (s.contains("автопарк") || s.contains("сама") || s.contains("паркуйся"))
-                return unsafeGate("帮我泊车");                                                // PARKING / OP_AUTO_PARKING ("припаркуйся" тоже)
-        }
-        if ((s.contains("едь за") || s.contains("езжай за") || s.contains("поезжай за")) && s.contains("машин"))
-            return unsafeGate("跟着前车走");                                                  // CONTROL_FOLLOW_CAR ("едь за той машиной")
-        if (s.contains("подъезжай") || s.contains("подзови") || (s.contains("призыв") && s.contains("машин")))
-            return unsafeGate("语音召唤");                                                    // carControl@OP_VOICE_SUMMON
-        return null;
-    }
 
     // ---------------------------------------------------------------- driving / energy / suspension
 
-    private static String zhDriveEnergy(String s, boolean off, String grade) {
-        String dm = zhDriveModeOf(s);
-        if (!dm.isEmpty() && !s.contains("музы") && !s.contains("звук") && !s.contains("подсветк")
-            && (s.contains("режим") || s.contains("вожден") || s.contains("переключ")
-                || s.contains("включи") || s.trim().equals("эко") || s.trim().equals("спорт")))
-            return "切换到" + dm;                                                             // SET_DRIVING_MODE
-        if (s.contains("электрическ") || s.contains("чисто электро") || s.contains("на электричестве"))
-            return "切换到纯电模式";                                                          // SET_ENERGY_MODE
-        if (s.contains("гибрид") || s.contains("увеличен запас")) return "切换到增程模式";
-        if (s.contains("сохран") && s.contains("заряд")) return "切换到保电模式";
-        if (s.contains("рекупер") && (grade.length() > 0 || s.contains("слабее") || s.contains("сильнее")))
-            return grade.equals("MINUS") || s.contains("слабее") ? "能量回收调弱一点" : "能量回收调强一点"; // SET_ENERGY_RECOVERY; вопросы «что такое рекуперация» -> чат
-        if (s.contains("подвеск") || s.contains("клиренс")) {
-            if (s.contains("мягч") || s.contains("мягк")) return "悬架调软一点";               // SET_SUSP_DAMPING
-            if (s.contains("жестч") || s.contains("жестк") || s.contains("жесч")) return "悬架调硬一点";
-            if (s.contains("выровн")) return "一键调平";                                      // ONE_CLICK_LEVELING
-            if (s.contains("ниже") || grade.equals("MINUS") || minusWordOf(s)) return "悬架降低一点"; // SET_SUSP_HEIGHT
-            return "悬架升高一点";
-        }
-        if (s.contains("погрузк") || s.contains("погрузи")) return "打开轻松搬运模式";         // CARRY_GOODS_EASILY
-        return null;
-    }
-
     // ---------------------------------------------------------------- comfort / scenario / misc modes
-
-    private static String zhComfortModes(String s, boolean off, int n) {
-        String sc = zhScenarioOf(s);
-        if (!sc.isEmpty()) return (off ? "关闭" : "打开") + sc;                               // SET_SCENARIO_MODE
-        if ((s.contains("охран") && !s.contains("сохран"))  // "сОХРАНи песню" — не режим охраны!
-            || s.contains("часов") || s.contains("сторож")
-            || (s.contains("сигнализаци") && !s.contains("аварийн")))
-            return (off ? "关闭" : "打开") + "哨兵模式";                                      // OP_SENTINEL_MODE ("поставь на сигнализацию")
-        if (s.contains("приватн")) return (off ? "关闭" : "打开") + "隐私模式";               // OP_PRIVACY_MODE
-        if (s.contains("мойк") && s.contains("режим")) return (off ? "关闭" : "打开") + "洗车模式"; // OP_CAR_WASH
-        if (s.contains("встреч") && s.contains("режим")) return (off ? "关闭" : "打开") + "接驾模式"; // OP_PICKUP_MODE
-        if (s.contains("подремать") || s.contains("поспать") || s.contains("вздремн") || s.contains("режим сна")
-            || (s.contains("разбуди") && (s.contains("минут") || s.contains("час")))) {
-            if (s.contains("полчаса")) return "我要睡30分钟";
-            if (s.contains("еще") || s.contains("продли")) return "再睡" + (n > 0 ? n : 10) + "分钟"; // EXTENDED_NAP_MODE_TIME
-            if (n > 0 && (s.contains("час") && n <= 12)) return "睡到" + n + "点叫我";         // SET_NAP_MODE_CLOCK
-            if (n > 0) return "我要睡" + n + "分钟";                                          // SET_NAP_MODE_TIME
-            return "我要睡一会儿";
-        }
-        if (s.contains("холодильник") || s.contains("морозилк") || s.contains("холодос")) {
-            // проверено на авто: 把车载冰箱温度调到5度 / 零下5度 («минус пять» = 零下, ниже нуля)
-            if (n >= 0 && n <= 20 && (s.contains("градус") || s.contains("на ") || s.contains("минус"))) {
-                boolean neg = s.contains("минус") || s.contains("ниже нуля") || s.contains("-");
-                return "把车载冰箱温度调到" + (neg ? "零下" : "") + n + "度";              // SET_REFRIGERATOR
-            }
-            // НЕ gradeOf(): «холодИЛЬНИК» содержит «холод» и даёт MINUS на любую фразу
-            if (s.contains("холоднее") || s.contains("похолодн")) return "车载冰箱温度调低一点";
-            if (s.contains("теплее") || s.contains("потепл")) return "车载冰箱温度调高一点";
-            if (s.contains("подогрев") || s.contains("нагрев")) return "车载冰箱调到加热模式"; // SET_REFRIGERATOR_MODE
-            // открой/закрой = ДВЕРЬ (冰箱门, SET_REFRIGERATOR_DOOR); включи/выключи = ПИТАНИЕ (车载冰箱)
-            if (s.contains("откр")) return "打开冰箱门";                                     // open the fridge DOOR
-            if (s.contains("закр")) return "关闭冰箱门";                                     // close the fridge DOOR
-            // 车载冰箱, not bare 冰箱: bare fridge may classify as a smartHome device (cloud) and fail offline
-            return off ? "关闭车载冰箱" : "打开车载冰箱";                                     // OP_REFRIGERATOR (power)
-        }
-        if (s.contains("напоминан")) {
-            if (s.contains("телефон")) return (off ? "关闭" : "打开") + "手机遗忘提醒";        // OP_FORGET_PHONE_ALERT
-            if (s.contains("рем")) return (off ? "关闭" : "打开") + "安全带未系提醒";          // OP_SEATBELT_UNFASTENED_ALERT
-            return (off ? "关闭" : "打开") + "日程提醒";                                      // CONTROL_SCHEDULE_ALERTS
-        }
-        if (s.contains("звук") && s.contains("скорост")) return (off ? "关闭" : "打开") + "低速提示音"; // OP_LOW_SPEED_ALERT
-        if (s.contains("виджет") || s.contains("минус один") || s.contains("минус-один"))
-            return (off ? "关闭" : "打开") + "负一屏";                                        // OP_NEGATIVE_ONE_SCREEN
-        if (s.contains("расширен") && s.contains("режим")) return (off ? "关闭" : "打开") + "拓展模式"; // OP_EXTENSION_MODE
-        if (s.contains("персонаж") || s.contains("аватар")) return "换个精灵形象";            // CHANGE_SPRITE
-        if (s.contains("тем") && (s.contains("темн") || s.contains("ночн"))) return "切换到夜间模式"; // «тёмная тема» = ночной режим
-        if (s.contains("тем") && (s.contains("светл") || s.contains("дневн"))) return "切换到白天模式";
-        if (s.contains("тему") || s.contains("тема оформлен")) return "换个主题";             // SWITCH_THEME
-        if (s.contains("обои") || s.contains("заставк")) return "换个壁纸";                   // SWITCH_WALLPAPER
-        if (s.contains("голос") && (s.contains("смени") || s.contains("друго"))) return "换个声音"; // SWITCH_VOICE_TONE
-        if (s.contains("мужск") && s.contains("голос")) return "换成男声";                    // SET_VOICE_TONE
-        if (s.contains("женск") && s.contains("голос")) return "换成女声";
-        if (s.contains("слово пробужден") || s.contains("слово активац")) return "修改唤醒词"; // SET_WAKE_WORD
-        if (s.contains("без пробужден") || s.contains("свободное общение"))
-            return (off ? "关闭" : "打开") + "免唤醒";                                        // OP_NON_WUW
-        return null;
-    }
 
     // ---------------------------------------------------------------- connectivity / charging
 
-    private static String zhConnectivity(String s, boolean off) {
-        if ((s.contains("блютус") || s.contains("bluetooth"))
-            && !s.contains("источник") && !s.contains("музык"))                               // "источник блютус" -> media source
-            return (off ? "关闭" : "打开") + "蓝牙";                                          // OP_BT
-        if ((s.contains("вайфай") || s.contains("wifi") || s.contains("wi-fi")) && !s.contains("раздай"))
-            return (off ? "关闭" : "打开") + "WiFi";                                          // OP_WIFI ("раздай вайфай" -> хотспот ниже)
-        if (s.contains("точку доступа") || s.contains("точка доступа")
-            || (s.contains("раздай") && (s.contains("интернет") || s.contains("вайфай") || s.contains("wifi"))))
-            return (off ? "关闭" : "打开") + "热点";                                          // OP_HOTSPOT ("интернет раздай")
-        if ((s.contains("беспроводн") && s.contains("заряд"))
-            || (s.contains("заряди") && s.contains("телефон"))) return (off ? "关闭" : "打开") + "无线充电"; // OP_WIRELESS_CHARGING
-        if (s.contains("розетк") || (s.contains("отдач") && s.contains("энерг")) || s.contains("разрядк"))
-            return (off ? "关闭" : "打开") + "对外放电";                                      // OP_DISCHARGE_POWER
-        if (s.contains("не беспокоить")) return (off ? "关闭" : "打开") + "勿扰模式";         // OP_MOBILE_DND
-        return null;
-    }
-
     // ---------------------------------------------------------------- cameras / DVR
-
-    private static String zhCameraDvr(String s, boolean off) {
-        if (s.contains("регистратор")) {
-            if (s.contains("альбом") || s.contains("записи")) return "打开行车记录仪相册";     // OP_DVR_ALBUM
-            if (s.contains("кадр") || s.contains("скрин") || s.contains("фото")) return "行车记录仪拍照"; // CAPTUR_DVR
-            if (off || s.contains("останови")) return "停止录像";                             // TAKE_DVR_REC (close)
-            return "行车记录仪开始录像";                                                      // TAKE_DVR_REC
-        }
-        if (s.contains("сфотк") || s.contains("сделай фото") || s.contains("селфи")
-            || s.contains("снимок") || (s.contains("фото") && s.contains("камер"))) return "拍照"; // TAKE_PHOTO
-        if (s.contains("сними видео") || s.contains("запиши видео")) return "拍个视频";       // TAKE_VIDEO
-        if (s.contains("360") || s.contains("круговой обзор") || s.contains("кругов обзор")
-            || (s.contains("камер") && (numIn(s) == 360 || s.contains("триста шестьдесят"))))  // "камера триста шестьдесят"
-            return off ? "关闭360" : "打开360全景影像";                                       // SET_SVM
-        if (s.contains("задн") && s.contains("обзор") && s.contains("ассистент"))
-            return (off ? "关闭" : "打开") + "后方视野辅助";                                  // OP_REAR_VIEW_ASSIST
-        if (s.contains("камер") && s.contains("задн"))
-            return off ? "关闭360" : "打开360全景影像";                                       // "камера заднего вида" -> SET_SVM
-        if (s.contains("вид камеры") || (s.contains("переключи") && s.contains("камер")))
-            return "切换摄像头视角";                                                          // SWITCH_CAMERA_VIEW
-        return null;
-    }
-
-    // ---------------------------------------------------------------- navi
-
-    private static String zhNavi(String s, boolean off, String grade) {
-        if (s.contains("навигаци") || s.contains("навигат")) {
-            if (s.contains("подсказк") || s.contains("громкост") || grade.length() > 0) {
-                if (s.contains("выключ") || s.contains("замолч")) return "关闭导航播报";       // SET_BROADCAST
-                if (s.contains("включ")) return "打开导航播报";
-                if (s.contains("кратк")) return "切换到简洁播报";
-                if (s.contains("подробн")) return "切换到详细播报";
-                if (grade.equals("PLUS")) return "导航音量调大一点";                           // ADJ_BROADCAST
-                if (grade.equals("MINUS")) return "导航音量调小一点";
-            }
-            if (s.contains("карточк")) return (off ? "关闭" : "打开") + "导航卡片";           // OP_NAVIGATION_CARD
-            if (s.contains("домой")) return "回家";                                           // "навигатор домой"
-            if (s.contains(" до ")) {                                                          // "навигатор до аэропорта"
-                String d = tailAfter(s, " до ");
-                if (!d.isEmpty()) return "导航去" + d;
-            }
-            if (off || s.contains("заверши") || s.contains("выйди")) return "退出导航";       // OP_NAVIGATION
-            return "开始导航";
-        }
-        if (s.contains("маршрут") && (s.contains("останови") || s.contains("отмени")
-            || s.contains("заверши") || s.contains("сбрось") || s.contains("удали")))
-            return "退出导航";                                                                // "останови маршрут"
-        if (s.contains("домой")) return "回家";                                              // LBS_ROUTE (bare "домой" = navigate, not desktop)
-        if (s.contains("на работу") && (s.contains("поехали") || s.contains("поедем") || s.contains("едем")
-            || s.contains("вези") || s.contains("отвези") || s.contains("маршрут"))) return "去公司";
-        for (String k : new String[]{"поехали", "поедем в", "поедем на", "едем в", "едем на",
-                "отвези", "вези", "гони в", "езжай в", "маршрут до", "доедем до", "доехать до"}) {
-            if (s.contains(k)) {
-                String poi = zhPoiOf(s);                       // "заедем на заправку" -> ближайшая АЗС
-                if (!poi.isEmpty()) return "附近的" + poi;
-                String dest = tailAfter(s, k);
-                // junk tails are not destinations ("поехали уже", "поехали быстрее")
-                if (!dest.isEmpty() && dest.length() >= 3
-                    && !dest.matches("(уже|туда|сюда|потом|позже|быстрее|скорее|дальше|давай|ну)( .*)?"))
-                    return "导航去" + dest;  // RU place name as-is — geocoder may need testing
-                break;
-            }
-        }
-        if (s.contains("хочу есть") || s.contains("хочу кушать") || s.contains("проголодал")) return "附近的餐厅"; // SEARCH_POI
-        if (s.contains("найди") || s.contains("поищи") || s.contains("где ближайш") || s.contains("где ")
-            || s.contains("заед") || s.contains("заскочим")
-            || s.contains("хочу") || s.contains("хочется") || s.contains("нужн") || s.contains("надо")) {
-            String poi = zhPoiOf(s);
-            if (!poi.isEmpty()) return s.contains("по пути") || s.contains("по дороге")
-                ? "沿途搜" + poi : "附近的" + poi;                                            // SEARCH_PASSBY / SEARCH_POI
-        }
-        if (s.contains("где мы") || s.contains("где я") || s.contains("наше местоположен")) return "我在哪里"; // ASK_LOCATION
-        if (s.contains("куда мы едем") || s.contains("куда едем") || s.contains("пункт назначен")) return "目的地是哪里"; // ASK_NAVI_POI
-        if ((s.contains("сколько") && !s.contains("пробег")
-             && (s.contains("км") || s.contains("километр") || s.contains("до места")))
-            || s.contains("далеко еще") || s.contains("еще далеко")) return "还有多远到";       // ASK_DISTANCE_LEFT
-        if (s.contains("сколько ехать") || s.contains("когда приедем") || s.contains("время в пути")
-            || s.contains("долго еще") || s.contains("еще долго")) return "还要多久到";        // ASK_TIME_LEFT
-        if (s.contains("объезжай") || s.contains("объедь") || s.contains("объехать")) return "躲避拥堵"; // SET_ROUTE_PREFERENCE — before the traffic question
-        if (s.contains("пробк") || (s.contains("как") && s.contains("дорог") && s.contains("впереди"))) return "前方路况怎么样"; // ASK_TRAFFIC_CONDITION
-        if (s.contains("карту") || s.contains("карта")) {
-            if (s.contains("приблиз") || s.contains("увелич") || grade.equals("PLUS")) return "放大地图"; // ZOOM_MAP_SIZE ("карту побольше")
-            if (s.contains("отдали") || s.contains("уменьши") || grade.equals("MINUS")) return "缩小地图";
-            if (s.contains("спутник")) return "切换到卫星地图";                                // SWITCH_MAP_LAYER
-            if (s.contains("обычн") || s.contains("стандартн")) return "切换到标准地图";
-            if (s.contains("север")) return "切换到正北朝上";                                  // SWITCH_VIEW_ORIENTATION
-            if (s.contains("по курсу") || s.contains("по ходу")) return "切换到车头朝上";
-            if (s.contains("3d") || s.contains("объемн")) return "切换到3D视角";
-            if (off || s.contains("закрой")) return "关闭地图";                                // CLOSE_MAP_PAGE
-            return "打开地图";                                                                // SWITCH_MAP_PAGE
-        }
-        if (s.contains("весь маршрут") || s.contains("полный маршрут")) return "查看全程路线"; // VIEW_FULL_ROUTE
-        if (s.contains("без платных") || s.contains("платн дорог")) return "避开收费";        // SET_ROUTE_PREFERENCE
-        if (s.contains("без шоссе") || s.contains("без трассы")) return "不走高速";
-        if (s.contains("объезжай пробк") || s.contains("объедь пробк")) return "躲避拥堵";
-        if (s.contains("сохрани") && (s.contains("место") || s.contains("адрес"))) return "收藏这个地点"; // COLLECT_ADDRESS
-        if (s.contains("запомни дом") || (s.contains("дом") && s.contains("адрес"))) return "设置家的地址"; // SET_HOME_POI
-        if (s.contains("запомни работу") || (s.contains("работ") && s.contains("адрес"))) return "设置公司地址"; // SET_COMPANY_POI
-        return null;
-    }
 
     // ---------------------------------------------------------------- phone
 
-    private static String zhPhone(String s) {
-        // "вызови такси/эвакуатор/помощь" — не звонок контакту, пусть уходит в чат
-        boolean callVerb = s.contains("позвони") || s.contains("набери")
-            || ((s.contains("вызови") || s.contains("звякни"))
-                && !s.contains("такси") && !s.contains("эвакуатор") && !s.contains("помощь"));
-        if (callVerb) {
-            if (s.contains("еще раз") || s.contains("снова") || s.contains("повтори")) return "重拨"; // REDIAL
-            String who = tailAfter(s, s.contains("позвони") ? "позвони"
-                : s.contains("набери") ? "набери" : s.contains("вызови") ? "вызови" : "звякни");
-            if (who.startsWith("номер")) who = who.substring(5).trim();
-            if (who.matches("[\\d\\s+-]+")) return "拨打" + who.replaceAll("[^\\d+]", "");     // digits -> dial number
-            if (!who.isEmpty()) return "给" + who + "打电话";  // CALL_REQUEST — RU contact name as-is
-            return null;
-        }
-        if (s.contains("перезвони")) return "回拨";                                           // CALL_BACK
-        if (s.contains("ответь") || s.contains("возьми трубку") || s.contains("прими звонок")) return "接听"; // ANSWER_CALL
-        if (s.contains("сбрось") || s.contains("положи трубку") || s.contains("отбой")
-            || s.contains("скинь вызов") || s.contains("скинь звонок")) return "挂断";        // HANG_UP
-        if (s.contains("отклони") || s.contains("не отвечай")) return "拒接";                 // IGNORE_CALL
-        if (s.contains("отмени вызов") || s.contains("отмени звонок")) return "取消拨打";     // CANCEL_DIAL
-        if (s.contains("журнал") && s.contains("вызов") || s.contains("история звонк")) return "打开通话记录"; // RENDER_CALL_HISTORY
-        if (s.contains("пропущенн")) return "播放未接来电";
-        if (s.contains("контакт")) {
-            if (s.contains("синхрон")) return "同步通讯录";                                   // SYNC_PHONE_CONTACT
-            if (s.contains("найди")) {                                                        // SEARCH_PHONEBOOK
-                String who = tailAfter(s, "найди");
-                if (who.startsWith("в контактах")) who = who.substring("в контактах".length()).trim();
-                if (!who.isEmpty()) return "查找联系人" + who;
-            }
-            return "打开通讯录";                                                              // RENDER_PHONE_CONTACT
-        }
-        return null;
-    }
-
     // ---------------------------------------------------------------- sound / media
-
-    private static String zhSoundMedia(String s, boolean off, String grade, int n) {
-        if (s.contains("выключи звук") || s.contains("без звука") || s.contains("замолчи")
-            || s.contains("убери звук") || s.contains("убрать звук")) return "静音";           // MUTE
-        if (s.contains("включи звук") || s.contains("со звуком") || s.contains("верни звук")) return "取消静音"; // UNMUTE
-        if (s.contains("хватит") || s.contains("перестань говорить") || s.contains("замолкни")) return "停止播报"; // STOP_BROADCAST
-        // "на полную (катушку)" рядом со звуком/музыкой = volume max
-        if ((s.contains("на полную") || s.contains("на всю катушку"))
-            && (s.contains("звук") || s.contains("громк") || s.contains("музы") || s.contains("колонк")))
-            return s.contains("музы") ? "音乐音量调到最大" : "音量调到最大";
-        if ((s.contains("громкост") || s.contains("громче") || s.contains("тише")
-             || (s.contains("звук") && (grade.length() > 0 || n >= 0)))
-            && !s.contains("едь") && !s.contains("езжай")) {                                   // "тише едь" - не про громкость
-            // "музыку громче" = громкость МЕДИА (音乐音量), иначе штатная система крутит
-            // громкость голосового ассистента; generic 声音 — только без упоминания музыки
-            boolean media = s.contains("музы") || s.contains("музон") || s.contains("песн")
-                || s.contains("трек") || s.contains("медиа") || s.contains("радио");
-            String vol = media ? "音乐音量" : "音量";
-            // "громче на 5" is a RELATIVE step, not "set volume to 5"
-            boolean rel = s.contains("громче") || s.contains("тише") || s.contains("прибав") || s.contains("убав");
-            if (!rel && n >= 0 && n <= 40 && (s.contains("громкост") || s.contains("на "))) return vol + "调到" + n; // SET_VOLUME
-            if (grade.equals("MAX") || s.contains("на полную")) return vol + "调到最大";
-            if (grade.equals("MIN")) return vol + "调到最小";
-            if (s.contains("громче") || grade.equals("PLUS") || plusWordOf(s))
-                return media ? "音乐音量调大一点" : "声音调大一点";
-            if (s.contains("тише") || grade.equals("MINUS") || minusWordOf(s))
-                return media ? "音乐音量调小一点" : "声音调小一点";
-            return null;
-        }
-        if (s.contains("что") && s.contains("играет")) return "这是什么歌";                   // "что играет" без слова "песня"
-        if (s.contains("играй дальше") || s.trim().equals("играй")) return "播放";            // resume без слова "музыка"
-        // media source switch before the track branch ("включи блютус музыку" is a source, not a song)
-        if (s.contains("блютус") || s.contains("bluetooth")) return "切换到蓝牙音乐";          // CONTROL_MEDIA_SOURCE
-        if (s.contains("юсб") || s.contains("usb") || s.contains("флешк")) return "切换到USB音乐";
-        // radio station next/prev ("следующая станция")
-        if (s.contains("станци") || s.contains("канал")) {
-            if (s.contains("предыдущ") || s.contains("прошл")) return "上一首";
-            if (s.contains("следующ") || s.contains("переключи") || s.contains("смени") || s.contains("друг")) return "下一首";
-        }
-        // "песен(ку)" - fleeting vowel; "музычку" needs the shorter root "музы"
-        boolean track = s.contains("трек") || s.contains("песн") || s.contains("песен")
-            || s.contains("композиц") || s.contains("музы") || s.contains("музон");
-        if (track) {
-            if (s.contains("следующ") || s.contains("дальше") || s.contains("переключи") || s.contains("смени")
-                || s.contains("другую") || s.contains("другой трек")) return "下一首";        // NEXT_MEDIA
-            if (s.contains("предыдущ") || s.contains("прошл")) return "上一首";               // PREVIOUS_MEDIA
-            // "не нравится" ДО "нравится" — иначе отрицание попадает в лайк
-            if (s.contains("убери из избранн") || s.contains("не нрав")) return "取消收藏这首歌"; // CANCEL_COLLECT_MEDIA
-            if (s.contains("нрав") || s.contains("в избранное") || s.contains("лайк") || s.contains("сохрани"))
-                return "收藏这首歌";                                                          // COLLECT_MEDIA ("понравилась песня")
-            if (s.contains("скачай")) return "下载这首歌";                                    // DOWNLOAD_SONG
-            if (s.contains("начал") || s.contains("заново")) return "重新播放";                // RESTART_PLAYBACK ("сначала", "в начало")
-            if (s.contains("что") && (s.contains("играет") || s.contains("за"))) return "这是什么歌"; // ASK_CURRENT_MEDIA
-            if (s.contains("текст")) return (off ? "关闭" : "打开") + "歌词";                 // OP_LYRICS
-            if (s.contains("по кругу") || s.contains("повтор")) return "单曲循环";             // SET_PLAYBACK_MODE
-            if (s.contains("случайн") || s.contains("перемешай") || s.contains("вперемешку")) return "随机播放";
-            if (s.contains("по порядку")) return "顺序播放";
-            // проверено на авто: голое 暂停 ставит текущее воспроизведение на паузу (работает оффлайн)
-            if (off || s.contains("выключи") || s.contains("останови") || s.contains("стоп")) return "暂停";
-            if (s.contains("пауз")) return "暂停";                                            // проверено на авто
-            if (s.contains("продолж") || s.contains("играй")) return "播放";                   // проверено на авто: 播放 запускает проигрыватель
-            if ((s.contains("включи") || s.contains("вруб") || s.contains("поставь") || s.contains("запусти")
-                 || s.contains("давай") || s.contains("послушать") || s.contains("послушаем") || s.contains("хочу"))
-                && (s.contains("музы") || s.contains("музон")))
-                return "播放";  // проверено на авто: голое 播放 запускает проигрыватель (оффлайн)
-            String w = s.trim();
-            if (w.equals("музыку") || w.equals("музыка") || w.equals("музычку")) return "播放"; // bare "музыку!"
-            String what = tailAfter(s, "включи");
-            if (what.isEmpty()) what = tailAfter(s, "поставь");
-            if (!what.isEmpty()) return "我想听" + what;  // free media item as-is
-        }
-        if (s.contains("перемотай")) {
-            if (s.contains("начал")) return "重新播放";                                       // "перемотай в начало"
-            if (n > 0 && s.contains("минут")) return "跳到第" + n + "分钟";                    // SET_PLAYBACK_TIME_POINT
-            if (n > 0) return (s.contains("назад") ? "快退" : "快进") + n + "秒";              // ADJUST_PLAYBACK_PROGRESS
-            return s.contains("назад") ? "快退15秒" : "快进15秒";
-        }
-        if (s.contains("скорост") && s.contains("воспроизведен")) {
-            if (s.contains("полтора") || s.contains("1.5")) return "1.5倍速播放";              // SPEED_PLAY
-            if (n == 2) return "2倍速播放";
-            return "1倍速播放";
-        }
-        if (s.contains("радио")) {
-            if (n > 0 && (s.contains("частот") || s.contains("волн") || s.contains("fm"))) return "收音机调到" + n + "兆赫"; // OP_RADIO_HARDWARE
-            return off ? "关闭收音机" : "打开收音机";
-        }
-        if (s.contains("источник")) {
-            if (s.contains("блютус")) return "切换到蓝牙音乐";                                 // CONTROL_MEDIA_SOURCE
-            if (s.contains("юсб") || s.contains("usb") || s.contains("флешк")) return "切换到USB音乐";
-            if (s.contains("онлайн")) return "切换到在线音乐";
-        }
-        if (s.contains("случайный порядок") || s.contains("перемешай")) return "随机播放";    // без слова "песня"
-        if (s.contains("плейлист") || s.contains("список воспроизведен")) return "打开播放列表"; // CONTROL_PLAYLIST
-        if (s.contains("избранн") && (s.contains("песн") || s.contains("трек") || s.contains("музы")))
-            return "打开我的收藏";                                                            // OP_MEDIA_FAVORITES_LIST ("покажи избранные песни")
-        if (s.contains("истори") && s.contains("прослушив")) return "打开播放历史";           // OP_MEDIA_HISTORY
-        if (s.contains("звук на водителя") || (s.contains("звуков") && s.contains("сцен")))
-            return s.contains("весь") || s.contains("всех") ? "音场切换到全车" : "音场切换到主驾"; // SWITCH_SOUND_FIELD
-        if (s.contains("качество звука") || s.contains("аудиофил")) return "切换到高音质";    // SET_SOUND_QUALITY
-        if (s.contains("улучшени звука") || s.contains("улучшение звука")) return (off ? "关闭" : "打开") + "音质增强"; // OP_QUALITY_ENHANCE
-        if (s.contains("караоке")) return (off ? "关闭" : "打开") + "无麦K歌";                // OP_NO_MIC_KARAOKE
-        return null;
-    }
 
     // ---------------------------------------------------------------- vehicleInfo
 
-    private static String zhVehicleInfo(String s) {
-        if ((s.contains("сколько") && (s.contains("заряд") || s.contains("батаре")))
-            || (s.contains("заряд") && (s.contains("какой") || s.contains("уровень") || s.contains("остал")
-                || s.contains("покажи") || s.contains("скажи")))
-            || s.contains("что по заряд") || s.contains("как там заряд")
-            || s.contains("запас хода") || s.contains("сколько бензина") || s.contains("остаток топлива"))
-            return "还有多少电";                                                              // REMAINING_POWER
-        if (s.contains("давлени") && (s.contains("шин") || s.contains("колес"))) return "胎压是多少"; // TIRE_PRESSURE
-        if (s.contains("пробег")) return "现在的里程是多少";                                  // CURRENT_MILEAGE
-        if (s.contains("воздух") && s.contains("салон")) return "车内空气质量怎么样";         // IN_CAR_AIR_QUALITY
-        if (s.contains("пожалов") || s.contains("фидбек") || s.contains("обратн связ")) return "我要反馈问题"; // FEEDBACK
-        return null;
-    }
-
     // ---------------------------------------------------------------- smartHome (all cloud)
-
-    private static String zhSmartHome(String s, boolean off, int n) {
-        if (!s.contains("дома") && !s.contains("домашн") && !s.contains("в квартире")) return null;
-        if (s.contains("кондиционер")) {
-            if (n >= 16 && n <= 33) return "家里空调调到" + n + "度";                          // SET_HOME_AIR_CONDITIONER
-            return (off ? "关闭" : "打开") + "家里的空调";
-        }
-        if (s.contains("свет")) return (off ? "关闭" : "打开") + "家里的灯";                  // SET_HOME_LIGHT
-        if (s.contains("штор")) return (off ? "关闭" : "打开") + "家里的窗帘";                // SET_HOME_CURTAIN
-        if (s.contains("очистител")) return (off ? "关闭" : "打开") + "家里的空气净化器";     // SET_HOME_AIR_PURIFIER
-        if (s.contains("осушител")) return (off ? "关闭" : "打开") + "家里的除湿机";          // SET_HOME_DEHUMIDIFIER
-        if (s.contains("пылесос")) return "让扫地机器人开始打扫";                             // SET_HOME_ROBOTIC_VACUUM
-        return null;
-    }
 
     // ---------------------------------------------------------------- appPageControl
 
-    private static String zhAppUi(String s, boolean off) {
-        if (s.contains("главный экран") || s.contains("рабочий стол") || s.contains("на главную")) return "返回桌面"; // BACK_DESKTOP ("домой" -> navi 回家)
-        if ((s.contains("ассистент") || s.contains("помощник")) && (off || s.contains("выйди") || s.contains("закройся")))
-            return "退出语音";                                                                // EXIT_VOICE_ASSIST
-        if (s.contains("отстань") || s.contains("уйди") || s.contains("отвали")
-            || s.trim().equals("закройся")) return "退下";                                    // EMOTION_EXIT_ASSIST
-        if (s.contains("предыдущ") && (s.contains("экран") || s.contains("страниц"))) return "返回上一页"; // GO_BACK_PAGE
-        if (s.contains("внешн") && (s.contains("голос") || s.contains("динамик")))
-            return (off ? "关闭" : "打开") + "车外语音";                                      // OP_EXTERNAL_VOICE
-        if (s.contains("галере") || (s.contains("фотограф") && s.contains("открой"))) return "打开相册"; // OP_PHOTO_ALBUM
-        if (s.contains("настройк")) {
-            if (s.contains("подсветк")) return "打开氛围灯设置";                              // CONTROL_AMBIENT_LIGHTING_PAGE
-            if (s.contains("зеркал")) return "打开后视镜设置";                                // CONTROL_REAR_MIRROR_PAGE
-            return "打开设置";                                                                // CONTROL_APP
-        }
-        if (s.contains("сценари") && s.contains("открой")) return "打开场景模式页面";         // CONTROL_SCENARIO_PAGE
-        if (s.contains("приложени") || s.contains("открой") || s.contains("запусти")) {
-            String app = zhAppOf(s);
-            if (!app.isEmpty()) return (off || s.contains("закрой") ? "关闭" : "打开") + app; // CONTROL_APP
-        }
-        return null;
-    }
-
     // ---------------------------------------------------------------- generalControl (bare context words — LAST)
-
-    private static String zhGeneralUi(String s, int n) {
-        String w = s.trim();
-        if (w.equals("да") || w.equals("подтверждаю") || w.equals("согласен") || w.equals("давай")) return "确认"; // CONFIRM
-        if (w.equals("нет") || w.equals("не надо") || w.equals("отмена")) return "不用了";     // CONFIRM_NO
-        if (w.equals("назад") || w.equals("вернись")) return "返回";                          // BACK
-        if (w.equals("продолжай") || w.equals("продолжи")) return "继续";                     // CONTINUE
-        if (s.contains("пауз") || w.equals("подожди")) return "暂停";                         // PAUSE ("поставь на паузу")
-        if (w.equals("следующий") || w.equals("дальше") || w.equals("следующая")) return "下一个"; // NEXT
-        if (w.equals("предыдущий") || w.equals("предыдущая")) return "上一个";                // PREVIOUS
-        if (w.equals("закрой все")) return "全部关闭";                                        // CLOSE_ALL
-        int i = ordinalIn(s);
-        if (i > 0) {
-            if (s.contains("страниц")) return "第" + i + "页";                                // PAGE_SELECTION
-            if (s.contains("удали")) return "删除第" + i + "个";                              // DELETE_INDEX
-            if (s.contains("позвони") || s.contains("набери")) return "打第" + i + "个";      // LIST_SELECTION_PHONE
-            if (s.contains("включи") || s.contains("песн") || s.contains("трек")) return "播放第" + i + "首"; // LIST_SELECTION_MEDIA
-            if (s.contains("выбери") || w.matches("(перв|втор|трет|четверт|пят)\\S*")) return "第" + i + "个"; // LIST_SELECTION
-        }
-        if (s.contains("листай") || s.contains("следующая страница")) return "下一页";        // TURN_PAGE
-        if (s.contains("предыдущая страница")) return "上一页";
-        if (s.contains("в избранное") || w.equals("сохрани")) return "收藏";                  // COLLECT
-        if (s.contains("убери из избранного")) return "取消收藏";                             // CANCEL_COLLECT
-        if (s.contains("избранное") && s.contains("открой")) return "打开收藏夹";             // OP_COLLECTION
-        return null;
-    }
 
 // ---------------------------------------------------------------------------------------------
 // NOTE on cloud/chat domains (weather, lifeService, carKnowledge, xiaoAnWorldview,
@@ -2467,22 +1741,15 @@ public final class VoskBridge {
 // NOTE: langOf() from the TODO list is intentionally NOT added — the 328-intent catalog contains
 // no system-language intent to feed it.
 
-    /** Normalized color code -> Chinese color word. */
-    private static String zhColor(String c) {
-        if ("RED".equals(c)) return "红色";
-        if ("BLUE".equals(c)) return "蓝色";
-        if ("GREEN".equals(c)) return "绿色";
-        if ("WHITE".equals(c)) return "白色";
-        if ("YELLOW".equals(c)) return "黄色";
-        if ("PURPLE".equals(c)) return "紫色";
-        if ("ORANGE".equals(c)) return "橙色";
-        if ("PINK".equals(c)) return "粉色";
-        return "";
-    }
-
     /** ru2zh voice/test routing: RU phrase → Chinese command → stock pipeline; else offline reply. */
     public static void handlePhraseZh(String ru) {
         if (ru == null || ru.trim().isEmpty()) return;
+        // ≤1 letter is never a command or a question — it's ASR tail noise (a stray «а» after the
+        // greeting). Sending it to the backend costs a round-trip and a spoken "Извините, я могу только…".
+        // Drop silently (owner's request, 2026-09-05).
+        int letters = 0;
+        for (int i = 0; i < ru.length(); i++) if (Character.isLetter(ru.charAt(i))) letters++;
+        if (letters <= 1) { Log.i(TAG, "ru2zh: ignoring ≤1-letter phrase: [" + ru + "]"); return; }
         String low = ru.toLowerCase();
         // Voice on/off for our TTS engine (ASR/commands are independent of tts_config, so BOTH work):
         //   "верни заводскую озвучку" → stock TTS;  "включи русскую озвучку" → our TTS. Effect after restart.
@@ -2495,31 +1762,18 @@ public final class VoskBridge {
             speak("Русская озвучка включена. Перезапустите ассистента.");
             showOnScreen("Русская озвучка (перезапустите ассистента)", TYPE_FEEDBACK); return;
         }
-        String zh = ru2zh(ru);
-        if (zh != null) { Log.i(TAG, "ru2zh: [" + ru + "] -> " + zh); injectZh(zh); return; }
-        // Free-form (weather / joke / general chat): the rule map missed. Translate RU->ZH online and
-        // feed the stock cloud NLU (native, device-signed) so the real Changan Dubhe answers.
-        if (CLOUD_MT) {
-            final String q = ru;
-            new Thread(new Runnable() { public void run() {
-                String mt = Translate.ruToZh(q);
-                if (mt != null && !mt.isEmpty()) { Log.i(TAG, "mt ru2zh: [" + q + "] -> " + mt); cloudAsk(mt); }
-                else if (OFFLINE_ONLY) showOnScreen("Не поняла команду", TYPE_FEEDBACK);
-                else sendToCloud(q);
-            }}).start();
-            return;
+        String zh = ru2zh(ru, wakeZone);
+        if (zh != null) {
+            // Remember it (try #1) in case the native NLU can't handle the injected command: we then
+            // re-send the RU to the LLM for one corrected try. See onLocalCommandFailed.
+            noteInjected(ru, zh, 1);
+            Log.i(TAG, "ru2zh: [" + ru + "] -> " + zh); injectZh(zh); return;
         }
-        if (OFFLINE_ONLY) { Log.i(TAG, "ru2zh: unrecognized: " + ru); showOnScreen("Не поняла команду", TYPE_FEEDBACK); }
-        else { Log.i(TAG, "ru2zh: -> chat: " + ru); sendToCloud(ru); }
-    }
-
-    /** Extract a plain integer from the phrase: digits first, else a Russian number word. */
-    private static int numIn(String s) {
-        try {
-            java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d{1,3})").matcher(s);
-            if (m.find()) return Integer.parseInt(m.group(1)); // capped at 3 digits -> no overflow
-        } catch (Throwable ignored) {}
-        return ruNum(s);
+        // Free-form (weather / knowledge / chat): the command map missed → send RAW Russian to our
+        // backend. It answers in Russian and may return car commands (executed inside sendToCloud).
+        // No RU->ZH translation here anymore.
+        if (OFFLINE_ONLY) { Log.i(TAG, "ru2zh: unrecognized (offline): " + ru); showOnScreen("Не поняла команду", TYPE_FEEDBACK); }
+        else { Log.i(TAG, "ru2zh: -> backend chat: " + ru); sendToCloud(ru); }
     }
 
     /*
@@ -2691,7 +1945,7 @@ public final class VoskBridge {
      */
     static String mapCommand(String t) {
         String s = t.toLowerCase().replace('ё', 'е');
-        String rid = "vosk-" + System.currentTimeMillis();
+        String rid = "stand-" + System.currentTimeMillis();
         boolean on = isOn(s), off = isOff(s);
         // zone: use the one spoken in the phrase; if none, fall back to the detected speaking seat.
         String zone = zoneOf(s);
@@ -2922,19 +2176,6 @@ public final class VoskBridge {
         return null; // not a known command -> chat
     }
 
-    /** Russian color word -> normalized color token (best-effort). */
-    private static String colorOf(String s) {
-        if (s.contains("красн")) return "RED";
-        if (s.contains("син")) return "BLUE";
-        if (s.contains("зелен")) return "GREEN";
-        if (s.contains("бел")) return "WHITE";
-        if (s.contains("желт")) return "YELLOW";
-        if (s.contains("фиолет")||s.contains("пурпур")) return "PURPLE";
-        if (s.contains("оранж")) return "ORANGE";
-        if (s.contains("розов")) return "PINK";
-        return "";
-    }
-
     /** Parse a Russian spoken number in the 16..33 range (tens + units). */
     static int ruNum(String s) {
         // «ноль/нуль» = 0 — ниже 0 считался бы «нет числа» (v > 0), и «холодильник на ноль градусов» включал холодильник
@@ -2960,8 +2201,105 @@ public final class VoskBridge {
      * Slots are written FLAT onto nluResults[0] (key = slot name, value = normalized value) — the
      * shape the stock adapters read (nlpBean.semantic.slots = nluResults[0]; slots.optString(name)).
      * A redundant "slots" array is added too, so any GSON/DM consumer that expects the list form
-     * still resolves. requestId starts with "vosk" so the patched onArbitrationResult keeps it.
+     * still resolves. requestId starts with "stand" so the patched onArbitrationResult keeps it.
      */
+    /** Convert a backend nluResult (domain/intent/slots) into a Chinese command phrase that the
+     *  PROVEN actuation pipeline (injectZh -> onFinalAsrResult) executes. Needed because
+     *  execArbitration/onArbitrationResult does NOT actuate carControl on this firmware (verified:
+     *  the result is delivered but no SoaBridge.setProperty follows). Returns null for intents we
+     *  don't map (caller falls back to execArbitration). Relative temp/volume work without any
+     *  telemetry — the native DM applies the step against the live setpoint. */
+    static String zhFromNlu(String intent, java.util.Map<String,String> s) {
+        if (intent == null) return null;
+        String action = s.get("action"), adj = s.get("adjustment"), mode = s.get("mode");
+        String temp = s.get("temperature"), fg = s.get("fuzzy_grade"), value = s.get("value");
+        boolean open = "OPEN".equals(action), close = "CLOSE".equals(action);
+        switch (intent) {
+            case "SET_AIR_CONDITIONER_TEMPERATURE":
+                if ("MIN".equals(fg)) return "温度调到最低";
+                if ("MAX".equals(fg)) return "温度调到最高";
+                if ("SUBTRACT".equals(adj)) return "温度调低";
+                if ("ADD".equals(adj))      return "温度调高";
+                if (temp != null && temp.matches("\\d+")) return "把温度调到" + temp + "度";
+                return null;
+            case "OP_AIR_CONDITIONER":        return close ? "关闭空调" : "打开空调";
+            case "SET_AIR_CONDITIONER_MODE": {
+                if ("AIR_PURIFICATION".equals(mode)) return close ? "关闭空气净化" : "打开空气净化";
+                String v = null;
+                if ("COOLING".equals(mode))            v = "制冷";
+                else if ("HEATING".equals(mode))       v = "制热";
+                else if ("RAPID_COOLING".equals(mode)) v = "强力制冷";
+                else if ("RAPID_HEATING".equals(mode)) v = "强力制热";
+                else if ("AUTO".equals(mode))          v = "空调自动";
+                else if ("ENERGY_SAVING".equals(mode)) v = "空调节能";
+                if (v == null) return null;
+                return (close ? "关闭" : "打开") + v + "模式";
+            }
+            case "SET_AIR_CIRCULATION": {
+                String z = s.get("zone");
+                if ("IN".equals(z))  return close ? "关闭内循环" : "打开内循环";
+                if ("OUT".equals(z)) return close ? "关闭外循环" : "打开外循环";
+                return null;
+            }
+            case "SET_DEFROST":               return close ? "关闭除雾" : "打开除雾";
+            case "OP_STEER_WARM":             return close ? "关闭方向盘加热" : "打开方向盘加热";
+            case "REAR_MIRROR_WARM":          return close ? "关闭后视镜加热" : "打开后视镜加热";
+            case "SET_SEAT_HEAT":             return close ? "关闭座椅加热" : "打开座椅加热";
+            case "SET_SEAT_VENTILATE":        return close ? "关闭座椅通风" : "打开座椅通风";
+            case "SET_CAR_WINDOW":
+                if ("OPEN_HALF".equals(action)) return "车窗开一半";
+                return close ? "关闭车窗" : "打开车窗";
+            case "SET_SUNROOF_WINDOW":        return close ? "关闭天窗" : "打开天窗";
+            case "OP_TRUNK":                  return close ? "关闭后备箱" : "打开后备箱";
+            case "OP_FRUNK":                  return close ? "关闭前备箱" : "打开前备箱";
+            case "OP_DOOR_LOCK":              return close ? "解锁" : "锁车";
+            case "CLOSE_ALL_ONE_KEY":         return "一键关闭";
+            case "OP_MOOD_LIGHTS":            return close ? "关闭氛围灯" : "打开氛围灯";
+            case "OP_DIPPED_BEAM":            return close ? "关闭大灯" : "打开大灯";
+            case "OP_HIGH_BEAM":              return close ? "关闭远光灯" : "打开远光灯";
+            case "OP_READ_LIGHTS":            return close ? "关闭阅读灯" : "打开阅读灯";
+            case "WASH_WIPER":                return "喷水洗玻璃";
+            case "SET_VOLUME":
+                // NOTE (verified on car 2026-09-05): 音量调到最大/最小 is NOT recognized as max/min — the
+                // stock NLU parses "音量调到…" and then ASKS for a number, so fuzzy_grade is dropped here.
+                // Also: 声音/音量 control the ASSISTANT/TTS volume, NOT media. A media-scoped phrase is still
+                // TODO (媒体音量/音乐音量…) so "сделай музыку громче" hits the music stream.
+                if ("SUBTRACT".equals(adj)) return "声音小一点";
+                if ("ADD".equals(adj))      return "声音大一点";
+                if (value != null && value.matches("\\d+")) return "音量调到" + value;
+                return null;
+            case "MUTE":                      return "静音";
+            case "UNMUTE":                    return "取消静音";
+            case "NEXT_MEDIA":                return "下一首";
+            case "PREVIOUS_MEDIA": case "LAST_MEDIA": return "上一首";
+            case "CONTROL_MEDIA_SOURCE":
+                if ("PAUSE".equals(action)) return "暂停";
+                if ("PLAY".equals(action))  return "播放音乐";
+                return null;
+            case "SET_ENERGY_MODE":
+                if (mode != null && !mode.isEmpty()) return "切换到" + mode + "模式";
+                return null;
+            default: return null;
+        }
+    }
+
+    /** Remove RUAccent stress marks for on-screen display: a '+' is a stress marker only when it sits
+     *  right before a Russian vowel, so we strip exactly those and leave any literal '+' (math, "C++"). */
+    static String stripStress(String s) {
+        if (s == null || s.indexOf('+') < 0) return s;
+        return s.replaceAll("\\+(?=[аеёиоуыэюяАЕЁИОУЫЭЮЯ])", "");
+    }
+
+    /** Normalize a backend slot value for the stock adapters: a pure number with a trailing unit
+     *  ("22度", "22°", "22℃", "22°C") becomes the bare number "22" (what SET_*_TEMPERATURE etc.
+     *  expect — the local mapper emits String.valueOf(n)). Non-numeric values pass through. */
+    private static String normSlot(String v) {
+        if (v == null) return "";
+        String t = v.trim();
+        if (t.matches("-?\\d+(?:度|°C|℃|°)")) return t.replaceAll("(?:度|°C|℃|°)$", "");
+        return t;
+    }
+
     private static String arbFlat(String rid, String query, String domain, String intent,
                                   java.util.Map<String,String> slots) {
         try {
@@ -2980,7 +2318,7 @@ public final class VoskBridge {
     }
 
     /** Execute a semantic result via the native pipeline (NluManager.onArbitrationResult).
-     *  json must contain nluResults[{domain,intent,slots}] + requestId starting "vosk". */
+     *  json must contain nluResults[{domain,intent,slots}] + requestId starting "stand". */
     public static void execArbitration(final String json) {
         new Thread(new Runnable() { public void run() {
             try {
@@ -2998,14 +2336,14 @@ public final class VoskBridge {
      *  can drop native Chinese results and keep only ours). */
     public static boolean isOurs(String json) {
         if (json == null) return false;
-        try { return new JSONObject(json).optString("requestId", "").startsWith("vosk"); }
-        catch (Throwable t) { return json.contains("\"requestId\":\"vosk"); }
+        try { return new JSONObject(json).optString("requestId", "").startsWith("stand"); }
+        catch (Throwable t) { return json.contains("\"requestId\":\"stand"); }
     }
 
     /** Called from patched SrPgsManager.appendPgs: replace native (Mandarin) text with our RU text. */
     public static String swap(String original) {
         String v = lastText;
-        if (v != null && !v.isEmpty()) return v;   // our RU text (Vosk partial, or the final once decoded)
+        if (v != null && !v.isEmpty()) return v;   // our RU text (ASR partial, or the final once decoded)
         // lastText empty = mid-utterance with GigaAM (no streaming partials). Suppress the stock partial
         // ENTIRELY — whether Chinese (would flash CJK) or a Russian prefix from the RU-patched iFlytek SR
         // (it leaks e.g. "За" that then doubles with the final → "Зазапусти музыку"). Show only the final.
@@ -3028,5 +2366,5 @@ public final class VoskBridge {
         return false;
     }
 
-    private VoskBridge() {}
+    private RuBridge() {}
 }

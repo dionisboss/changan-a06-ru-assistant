@@ -13,14 +13,11 @@ terms with the upstream project before redistribution; links are provided for th
 | baksmali / smali | `tools/baksmali.jar`, `tools/smali.jar` | https://github.com/google/smali | Apache‑2.0 |
 | uber‑apk‑signer | `tools/uber-apk-signer.jar` | https://github.com/patrickfav/uber-apk-signer | Apache‑2.0 |
 | AOSP platform test‑keys | `tools/platform-key/` | AOSP `build/target/product/security` | Apache‑2.0 (public test keys) |
-| Vosk / JNA classes | `stand/asr-android/libs/` | https://github.com/alphacephei/vosk-api · https://github.com/java-native-access/jna | Apache‑2.0 / LGPL‑2.1+Apache |
 
 Notes:
 
 - The **AOSP test‑keys** are the well‑known public keys shipped in the Android source tree. They are
   required because the C390 firmware is signed with them; they are **not** secret and provide no
   security — anyone can sign with them.
-- The **Vosk/JNA** jars are a historical dependency (the recognizer was migrated to GigaAM). They are
-  still on the `d8` classpath and end up in `classes7.dex` as unused classes; they can be dropped later.
 - The stock **`SpeechAssistant.apk`** (Changan / iFlytek proprietary) is the build input and is **not**
   included in this repository. You must supply your own copy pulled from your device (see `README.md`).

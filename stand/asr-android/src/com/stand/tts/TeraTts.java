@@ -49,9 +49,9 @@ public final class TeraTts {
             java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<String, byte[]>(64, 0.75f, true) {
                 protected boolean removeEldestEntry(java.util.Map.Entry<String, byte[]> e) { return size() > CACHE_MAX; }
             });
-    // Fixed wake/idle prompts spoken by the assistant (see VoskBridge.zh2ru: 主驾请说→"Водитель, я слушаю").
-    private static final String[] PREWARM = { "Водитель, я слушаю", "Пассажир, я слушаю", "Я слушаю",
-                                              "Я здесь", "Чем могу помочь", "Да" };
+    // Fixed wake/idle prompts spoken by the assistant (see RuBridge.zh2ru: wake prompt → "Чем могу помочь").
+    private static final String[] PREWARM = { "Чем могу помочь", "Пассажир, чем могу помочь",
+                                              "Да", "До свидания" };
 
     private static String procName() {
         try {
@@ -87,7 +87,7 @@ public final class TeraTts {
 
     public static void init(final Context c) {
         appCtx = c.getApplicationContext();
-        Log.i(TAG, com.stand.vosk.VoskBridge.NOTICE);   // legal notice (anchored in dex)
+        Log.i(TAG, com.stand.bridge.RuBridge.NOTICE);   // legal notice (anchored in dex)
         // init() is called once per PiperCaTts instance (config maps several engines to it); guard so
         // engine load + greeting prewarm run exactly ONCE, not 3× (which stormed the CPU at startup).
         if (isTtsProcess() && STARTED.compareAndSet(false, true)) new Thread(new Runnable() { public void run() {
@@ -232,7 +232,7 @@ public final class TeraTts {
     }
 
     // ---- Direct playback path (replaces the former PiperTts.speak): used to voice our own RU
-    //      responses/tips (VoskBridge.onTtsText / onTipText / StandNluReceiver). Synthesizes via
+    //      responses/tips (RuBridge.onTtsText / onTipText / StandNluReceiver). Synthesizes via
     //      TeraTTS (synthPcm16, cached) and streams the PCM through AudioTrack. -------------------
     private static volatile AudioTrack track;
 

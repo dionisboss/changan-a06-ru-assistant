@@ -27,6 +27,9 @@ import java.util.Map;
 final class TeraAccents {
     private static final Map<String, String> LEX = new HashMap<String, String>(1070);
     static {
+        // ручные добавления (не из accent_replies.py): «ага» голосом звучит плохо — озвучиваем как «так точно»
+        LEX.put("ага", "так т+очно");
+        LEX.put("угу", "так т+очно");
         LEX.put("автоматическ", "автомат+ическ");
         LEX.put("аккумулятор", "аккумул+ятор");
         LEX.put("аккумулятора", "аккумул+ятора");
@@ -36,6 +39,7 @@ final class TeraAccents {
         LEX.put("ампера", "амп+ера");
         LEX.put("ассистент", "ассист+ент");
         LEX.put("ассистента", "ассист+ента");
+        LEX.put("голоса", "г+олоса");        // «громкость гОлоса» (род. п.), словарь даёт мн. ч. голосА
         LEX.put("аудиофил", "аудиоф+ил");
         LEX.put("багажник", "баг+ажник");
         LEX.put("багажника", "баг+ажника");
@@ -575,10 +579,14 @@ final class TeraAccents {
         int i = 0, n = text.length();
         while (i < n) {
             char c = text.charAt(i);
-            if (isCyr(c)) {
-                int j = i;
-                while (j < n && isCyr(text.charAt(j))) j++;
-                out.append(mapWord(text.substring(i, j), dict));
+            if (isCyr(c) || c == '+') {
+                int j = i;                                  // '+' is part of the word (stress marker)
+                while (j < n && (isCyr(text.charAt(j)) || text.charAt(j) == '+')) j++;
+                String w = text.substring(i, j);
+                // A word already carrying a '+' (e.g. the backend's RUAccent-marked answer) is kept
+                // verbatim — deliberate stress. Only UNMARKED words get the on-device dictionary
+                // stress, so a partially-marked answer still gets every word stressed.
+                out.append(w.indexOf('+') >= 0 ? w : mapWord(w, dict));
                 i = j;
             } else {
                 out.append(c);

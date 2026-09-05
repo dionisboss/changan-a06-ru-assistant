@@ -44,7 +44,7 @@ SELinux find vendor-сервисов `ca.evs.app.service`/`CaConfigManagerServic
 Оболочка рисует текст ответа «печатной машинкой» `PgsView`/`PgsSwitcherView` (classes5),
 которая слушает broadcast **`com.incall.action.UPDATE_TEXT`**, extra `"text"`.
 (`VpaManager.showVoiceText`→`sendTextToVoice` в aiavpasdk шлёт именно его; приём `tvVpaContent`.)
-→ Наш `VoskBridge.showOnScreen(text)` делает `sendBroadcast(Intent("com.incall.action.UPDATE_TEXT").putExtra("text",…))`.
+→ Наш `RuBridge.showOnScreen(text)` делает `sendBroadcast(Intent("com.incall.action.UPDATE_TEXT").putExtra("text",…))`.
 Вызывается в `sendToCloud` при получении ответа LLM. Работает и на стенде, и на авто.
 
 ## Все состояния/каналы виджета ассистента (разобрано по коду)
@@ -74,7 +74,7 @@ Extras: `text`(CharSequence), `textList`(ArrayList — несколько стр
 - карточки картинка/видео (`iv_vpa_image/video` в `VpaView`) — сцен-протокол `com.changan.aiassist.message`
   (`VpaManager.receiveEvent` парсит JSON `{eventCode,extra}`) + провайдер `content://com.changan.aia_sharevpa/aiavpashare_tb`
 
-**Наш пайплайн `VoskBridge` → эти состояния** (обновлено): частичный Vosk → `showOnScreen(p,TYPE_PGS)`;
+**Наш пайплайн `RuBridge` → эти состояния** (обновлено): частичный результат ASR → `showOnScreen(p,TYPE_PGS)`;
 финальная фраза → `showOnScreen(query,TYPE_NLP)`; ответ LLM → `showOnScreen(answer,TYPE_FEEDBACK)` +
 `showTtsSubtitle(answer)`. Подсказки в покое — уже через хук `GuideWordsStore` ([[russian-assistant-full]]).
 

@@ -29,7 +29,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 /**
- * GigaAM-v3 CTC offline ASR backend (replaces Vosk). Runs on sherpa-onnx (the same native
+ * GigaAM-v3 CTC offline ASR backend. Runs on sherpa-onnx (the same native
  * libsherpa-onnx-jni.so we already bundle for Piper — it carries GigaAM `is_giga_am` fbank support).
  *
  * GigaAM is a full-utterance Conformer, NOT streaming: audio (16 kHz mono s16le) arrives as chunks
@@ -53,7 +53,7 @@ public final class GigaAsr {
 
     public static void init(final Context c) {
         appCtx = c.getApplicationContext();
-        android.util.Log.i("GigaAsr", com.stand.vosk.VoskBridge.NOTICE);  // legal notice (anchored in dex)
+        android.util.Log.i("GigaAsr", com.stand.bridge.RuBridge.NOTICE);  // legal notice (anchored in dex)
         if (rec != null) return;
         new Thread(new Runnable() { public void run() { ensure(); } }).start();
     }

@@ -1,46 +1,104 @@
-# Russian Voice Assistant for Changan A06 (C390)
+# Русский голосовой ассистент для Changan A06 (C390)
 
-An offline-first Russian voice assistant modification for the **Changan A06 / C390** head unit
-(MediaTek MT6897, Android 14 Automotive). It replaces the recognizer and voice of the stock
-assistant (`com.incall.apps.speechassistant`) with Russian, while riding the stock NLU / actuation
-pipeline so real car commands keep working.
+[English](README.en.md)
 
-**Author:** Voronov Aleksei Sergeevich · **Version:** 1.0.2 · Distributed free of charge.
-Independent modification — **not affiliated with, endorsed by, or produced by Changan Automobile.**
+Модификация штатного голосового ассистента головного устройства **Changan A06 / C390**
+(MediaTek MT6897, Android 14 Automotive). Заменяет распознавание речи и голос ассистента
+на русские, а команды исполняет через **штатный** конвейер NLU → DM → CarService, поэтому
+климат, сиденья, окна, свет, медиа и прочее работают как с завода. Root не нужен.
 
-## What it does
+**Автор:** Воронов Алексей Сергеевич · **Версия:** 1.0.3 · Распространяется бесплатно.
+Независимая модификация, **не связана с Changan Automobile** и не одобрена ею.
 
-- **Offline Russian ASR** — [GigaAM‑v3](https://github.com/salute-developers/GigaAM) CTC (sherpa‑onnx),
-  full‑utterance decode. Open‑vocabulary + a Levenshtein fuzzy‑correction pass for command words.
-- **Russian TTS** — [TeraTTS](https://github.com/Tera2Space/TeraTTS) (`ru_f2`, ONNX Runtime),
-  registered as a native TTS engine so the whole assistant speaks Russian.
-- **Command routing (`ru2zh`)** — a rule‑based Russian→Chinese mapper turns recognized phrases into
-  the stock NLU's intents and injects them, so climate / seats / windows / media / lights / etc.
-  actuate through the factory pipeline (and future OTAs).
-- **Online conversational path (optional)** — free‑form questions (weather, chit‑chat) are translated
-  RU→ZH via [MyMemory](https://mymemory.translated.net/), sent to the real Changan Dubhe cloud, and the
-  answer is translated ZH→RU and spoken. The device signs its own request; no external server needed.
-- **One‑step self‑install** — the app runs as `uid=system` on Permissive SELinux, so on first launch it
-  registers its TTS engine and sets the default wake word itself; no manual `adb` config editing.
+## Что умеет
 
-## How it works (short)
+- **Офлайн-распознавание русской речи** — [GigaAM‑v3](https://github.com/salute-developers/GigaAM)
+  CTC через sherpa‑onnx, распознавание всей фразы целиком, открытый словарь.
+- **Русская озвучка** — [TeraTTS](https://github.com/Tera2Space/TeraTTS) (`ru_f2`, ONNX Runtime),
+  зарегистрирован как **штатный TTS‑движок**: все ответы ассистента звучат по‑русски.
+- **Команды офлайн (`ru2zh`)** — маппер на правилах превращает русскую фразу в каноническую
+  китайскую команду, которую понимает штатный NLU, и инжектит её в конвейер. Около 240 интентов
+  (климат, сиденья, окна и люк, свет, зеркала, HUD, ADAS, режимы, камеры, медиа, громкость по
+  каналам, состояние авто и т.д.) работают без сети.
+- **Онлайн‑часть (опционально)** — свободные вопросы, беседа, погода, а также команды, которые
+  офлайн‑маппер не знает или которые машина отклонила, уходят на бэкенд с LLM. Бэкенд может
+  вернуть готовый интент, китайскую команду «на пробу» или запустить установленное пользователем
+  приложение (например, построить маршрут в Яндекс Навигаторе).
+- **Пробуждение** — слово «нихао» (你好) или кнопка на руле. По кнопке играет короткий сигнал,
+  и можно сразу говорить; по слову — сигнал вместе с фразой «Чем могу помочь».
+- **Установка в один шаг** — приложение работает с `uid=system` на Permissive SELinux, поэтому при
+  первом запуске само прописывает свой TTS‑движок в `tts_config.txt` (с бэкапом) и ставит слово
+  пробуждения. Правок через `adb` не требуется.
 
-The stock `SpeechAssistant.apk` is disassembled (baksmali), a handful of methods are patched to tap the
-ASR audio, feed our recognized text into the NLU, and route TTS through our engine; our own code ships
-as an extra `classes7.dex` plus the model assets and JNI libs. The result is re‑zipped, zip‑aligned and
-signed with the **public AOSP test‑keys** — the C390 firmware is itself signed with those keys, so the
-patched app installs as a normal system‑app update **without root**.
+## Принцип работы
 
-## Requirements
+```
+микрофон ──► штатный аудиофронтенд (AEC, wake‑word iFlytek)
+                 │  PCM (перехват в SrBaseSession)
+                 ▼
+          GigaAsr (sherpa‑onnx, офлайн)  ──► русский текст
+                 │
+                 ▼
+          RuBridge.handlePhraseZh
+                 │
+      ┌──────────┴───────────┐
+      ▼                      ▼
+  Ru2Zh.ru2zh()          бэкенд (LLM)  ◄── если маппер не знает фразу,
+  RU → кит. команда       │               вопрос, беседа, отказ машины
+      │                   │ nluResults / zhCommands / appActions / текст
+      ▼                   ▼
+  injectZh ──► штатный NLU → DM → CarService (актуация, как с завода)
+                 │
+                 ▼  текст ответа (китайский или уже русский из оверлеев)
+          TtsPlayer.start ──► ttsRewrite (CJK → RU) ──► PiperCaTts (TeraTTS) ──► динамики
+```
 
-- A Changan A06 / C390 head unit whose firmware is signed with AOSP test‑keys (stock for C390), reachable
-  over `adb` (USB or network). **No root needed.**
-- Build host: **JDK 17**, **Android SDK** with `platforms;android-34` and `build-tools;34.0.0`, `adb`.
-- The **stock `SpeechAssistant.apk`** from *your* device (proprietary — not included here, see below).
+Технически это **патч штатного `SpeechAssistant.apk`**: приложение разбирается baksmali, в
+несколько методов вставляются вызовы нашего кода (перехват аудио ASR, подмена запроса к NLU,
+перехват текста TTS, сигнал по кнопке), наш код добавляется отдельным `classes7.dex` вместе с
+моделями и JNI‑библиотеками, APK собирается обратно, выравнивается и подписывается
+**публичными AOSP test‑keys**. Прошивка C390 подписана теми же ключами, поэтому патченное
+приложение ставится как обычное обновление системного приложения — без root.
 
-## Build
+Ключевые классы (`stand/asr-android/src/com/stand/`):
 
-1. Pull the stock APK from your car (proprietary Changan component — you must supply your own copy):
+| Класс | Роль |
+|---|---|
+| `bridge/RuBridge` | ядро: перехват PCM, вызов ASR, маршрутизация фразы (офлайн → бэкенд), инъекция в NLU, перевод текста TTS, детектор неудавшихся команд, запуск приложений, история диалога |
+| `bridge/Ru2Zh` | офлайн‑маппер RU → ZH; чистые строковые правила без Android, покрыт офлайн‑тестами |
+| `bridge/StandNluReceiver` | broadcast‑триггеры для отладки (`am broadcast -a com.stand.NLU …`) |
+| `asr/GigaAsr` | GigaAM‑v3 на sherpa‑onnx |
+| `tts/PiperCaTts` | реализация штатного интерфейса TTS‑движка (`ICaStreamTts`) поверх TeraTTS |
+| `tts/TeraTts`, `tts/tera/*` | синтез, ударения, раскрытие чисел, кэш фраз |
+| `tts/WakeChime` | сигнал пробуждения (`assets/stand/wake_chime.wav`) |
+
+Что делают smali‑патчи (`stand/build_sa.sh`):
+
+- `SrBaseSession` — PCM микрофона уходит в `RuBridge.feed`, штатный китайский распознаватель
+  отключён (`NO_CN_SR`), при этом wake‑word и детектор конца фразы остаются штатными;
+- `NluManager.onArbitrationResult` — пропускаются только наши результаты (`requestId` с префиксом
+  `stand`), плюс детектор «команда не распознана» для отправки на бэкенд;
+- `TtsPlayer.start` — весь текст, идущий в озвучку, переписывается с китайского на русский
+  (`TTS_REWRITE`), подсказки экрана не озвучиваются;
+- `TipsPlayer.playWakeUpTips` / `TipsManager.getWakeUpTipsFromClick` — пробуждение по кнопке
+  даёт маркер, по которому TTS‑движок играет сигнал вместо фразы (`WAKE_CHIME`);
+- эндпоинты Changan и телеметрия перенаправляются на `HOST` (по умолчанию недостижимый
+  `127.0.0.1`), чтобы ничего не уходило в китайское облако;
+- `SettingsUtil.getLanguage` → русский (`RUSSIAN_ASR`).
+
+## Требования
+
+- Головное устройство Changan A06 / C390 с прошивкой, подписанной AOSP test‑keys (штатно для
+  C390), доступ по `adb` (USB или Wi‑Fi). Root не нужен.
+- Хост сборки: **JDK 17**, **Android SDK** с `platforms;android-34` и `build-tools;34.0.0`, `adb`.
+  macOS: `brew install --cask android-commandlinetools openjdk@17`.
+- **Штатный `SpeechAssistant.apk` с вашей машины** — проприетарный компонент, в репозиторий не
+  входит.
+- Два файла моделей больше 100 МБ не хранятся в git — см. [MODELS.md](MODELS.md).
+
+## Сборка
+
+1. Вытащить штатный APK:
 
    ```sh
    SER=$(adb devices | awk '/device$/{print $1; exit}')
@@ -48,64 +106,103 @@ patched app installs as a normal system‑app update **without root**.
    adb -s "$SER" pull "$P" ./SpeechAssistant.orig.apk
    ```
 
-   > Two model files (>100 MB) are not tracked by git — see [MODELS.md](MODELS.md) and place them at the
-   > listed paths before building.
+2. Положить модели по путям из [MODELS.md](MODELS.md).
 
-2. Build (auto‑detects `JAVA_HOME` / `ANDROID_HOME`; export them if needed):
+3. Собрать (`JAVA_HOME` / `ANDROID_HOME` определяются автоматически, при необходимости экспортируйте):
 
    ```sh
-   ./build.sh ./SpeechAssistant.orig.apk out/speechassistant-ru2zh.apk
+   ./build.sh ./SpeechAssistant.orig.apk out/speechassistant-ru.apk
    ```
 
-## Install
+   `build.sh` делает два шага: `stand/asr-android/build_dex.sh` (javac + d8 → `classes7.dex`) и
+   `stand/build_sa.sh` (baksmali → патчи → упаковка dex/ассетов/библиотек → zipalign → подпись).
+
+Флаги `build_sa.sh` (переменные окружения), которые выставляет `build.sh`:
+
+| Флаг | Значение |
+|---|---|
+| `PROFILE=car HOST=…` | профиль машины; `HOST` — куда перенаправить эндпоинты Changan (по умолчанию тупик) |
+| `BRIDGE=1` | добавить `classes7.dex` и все хуки RuBridge |
+| `GIGAAM=1` | модель GigaAM в `assets/gigaam` |
+| `TERA=1` | ассеты TeraTTS в `assets/tera` |
+| `PIPER=1` | JNI‑библиотеки sherpa‑onnx и onnxruntime (историческое имя флага) |
+| `NO_CN_SR=1` | отключить китайское распознавание, оставить wake‑word |
+| `TTS_REWRITE=1` | переписывать текст TTS с китайского на русский |
+| `RUSSIAN_ASR=1` | язык ассистента → русский |
+| `WAKE_CHIME=1` | сигнал по кнопке на руле (по умолчанию включён) |
+
+Бэкенд для онлайн‑части задаётся константой `BACKEND` в `RuBridge.java`; при недоступной сети
+или `OFFLINE_ONLY=true` ассистент работает полностью офлайн.
+
+## Установка
 
 ```sh
-adb push out/speechassistant-ru2zh.apk /data/local/tmp/sa.apk
+adb push out/speechassistant-ru.apk /data/local/tmp/sa.apk
 adb shell pm install -r -d -g -t /data/local/tmp/sa.apk
 adb shell am force-stop com.incall.apps.speechassistant
 ```
 
-Wake with **«нихао» (你好)** and speak, e.g. «включи климат», «какая погода в шанхае».
+Первый запуск занимает до минуты: распаковываются модели (~600 МБ), прописывается TTS‑движок.
+Затем: «нихао» или кнопка на руле → «включи обогрев руля», «открой окно водителя», «сделай
+температуру 22», «громкость голоса тише», «включи круговой обзор», «какая погода в Москве».
 
-## Tests
+Замена сигнала пробуждения: положить свой WAV (24 кГц, моно, 16 бит) в
+`stand/asr-android/assets/wake_chime.wav` и пересобрать.
 
-The `ru2zh` command mapper has offline unit tests (no car, no models, just a JDK) — 640+ phrase→intent
-cases plus a set of chatter that must *not* trigger a command:
+## Тесты
+
+Маппер `Ru2Zh.java` (тот самый файл, что попадает в APK) покрыт офлайн‑тестами: 950 случаев
+«фраза → команда» и набор бытовых реплик, которые не должны становиться командами. Нужен только JDK:
 
 ```sh
-sh ru2zh/translate-task/tests/run_tests.sh   # -> PASS=684 FAIL=0
+sh ru2zh/translate-task/tests/run_tests.sh   # -> PASS=950 FAIL=0
 ```
 
-## Uninstall / revert to factory
+Отладочные триггеры на машине (`adb shell am broadcast -a com.stand.NLU -p com.incall.apps.speechassistant …`):
+`--es rub64 <base64 русской фразы>` — прогнать фразу по тому же пути, что и голос;
+`--es zhb64 <base64 китайской команды>` — инжект китайской команды напрямую;
+`--es keywake 1` — симуляция кнопки на руле; `--es sayb64 <base64>` — озвучить текст штатным путём.
+
+## Удаление / возврат к заводскому
 
 ```sh
-adb shell pm uninstall com.incall.apps.speechassistant   # removes the update -> factory /system app
+adb shell pm uninstall com.incall.apps.speechassistant   # удаляет обновление -> заводское приложение из /system
 ```
 
-On first run the mod backs up the TTS config it edits to `tts_config.txt.bak` next to it, so the factory
-voice can be restored from that backup. A factory reset of the head unit always restores the original as
-well (the mod lives in `/data`, the factory app in `/system`).
+Мод при первом запуске сохраняет копию правленого `tts_config.txt` рядом (`tts_config.txt.bak`);
+голосом: «верни заводскую озвучку» / «включи русскую озвучку». Сброс головного устройства до
+заводских настроек тоже возвращает оригинал (мод живёт в `/data`, заводское приложение — в `/system`).
 
-## Layout
+## Ограничения
+
+- Дворники и омыватель голосом на этой комплектации заблокированы конфигурацией самого автомобиля
+  (штатный ассистент отказывает так же).
+- Температура салона не адресуется по зонам штатным NLU; сиденья, окна и свет — адресуются.
+- Штатная навигация работает только в Китае; маршруты строятся через установленный пользователем
+  навигатор (онлайн‑часть).
+
+## Структура репозитория
 
 ```
-build.sh                     one-shot: compile classes7 + patch/repack/sign
-stand/build_sa.sh            baksmali -> patch smali -> add classes7/assets/libs -> zipalign -> sign
-stand/env.sh                 toolchain + platform-key paths
-stand/asr-android/           our code + models
-  src/com/stand/**           VoskBridge (ASR tap, ru2zh, cloud), GigaAsr, TeraTts, Translate, ...
+build.sh                     сборка в один шаг: classes7 + патч/упаковка/подпись
+stand/build_sa.sh            baksmali -> smali-патчи -> dex/ассеты/библиотеки -> zipalign -> подпись
+stand/env.sh                 тулчейн и пути к ключам
+stand/asr-android/           наш код и модели
+  src/com/stand/**           RuBridge, Ru2Zh, StandNluReceiver, GigaAsr, PiperCaTts, TeraTts, WakeChime
   build_dex.sh               javac + d8 -> classes7.dex
-  gigaam/                    GigaAM-v3 int8 ONNX model + tokens
-  piper/jni/arm64-v8a/       sherpa-onnx + onnxruntime JNI libs
-  libs/ src-stubs/ sherpa-src/  compile-time deps
-tools/                       baksmali/smali/uber-apk-signer jars, AOSP test-keys, TeraTTS assets
-ru2zh/translate-task/ru2zh_extended.java   the ru2zh command table (spliced into VoskBridge.java)
+  assets/wake_chime.wav      сигнал пробуждения
+  gigaam/                    GigaAM-v3 int8 ONNX + tokens
+  piper/jni/arm64-v8a/       JNI sherpa-onnx + onnxruntime
+  libs/ src-stubs/ sherpa-src/  зависимости времени компиляции
+tools/                       baksmali/smali/uber-apk-signer, AOSP test-keys, ассеты TeraTTS
+ru2zh/translate-task/tests/  офлайн-тесты Ru2Zh (tests.tsv, chatter.txt, run_tests.sh)
 ```
 
-## License
+## Лицензия
 
-Source‑available under the **PolyForm Noncommercial License 1.0.0** — **noncommercial use only**
-(see [LICENSE](LICENSE)). The modification is distributed free of charge. Third‑party components
-(models, JNI libs, tooling) keep their own licenses — see [THIRD_PARTY.md](THIRD_PARTY.md).
+Исходники открыты на условиях **PolyForm Noncommercial License 1.0.0** — **только некоммерческое
+использование** (см. [LICENSE](LICENSE)). Модификация распространяется бесплатно. Сторонние
+компоненты (модели, JNI‑библиотеки, инструменты) сохраняют свои лицензии — см.
+[THIRD_PARTY.md](THIRD_PARTY.md).
 
-**No warranty.** Voice control of a vehicle can fail or misrecognize commands; use at your own risk.
+**Без гарантий.** Голосовое управление автомобилем может ошибаться; используйте на свой риск.

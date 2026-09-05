@@ -25,7 +25,7 @@ import java.util.regex.Pattern;
  */
 final class TeraNumbers {
     private static final Pattern NUMBER =
-            Pattern.compile("(?<![\\w.])[-−]?\\d+(?:[.,]\\d+)?(?![\\w.])");
+            Pattern.compile("(?<![\\w.])[-−]?\\d+(?:[.,]\\d+)?(?![\\w])");
 
     private static final String[] UNITS = {
             "ноль", "один", "два", "три", "четыре", "пять",
