@@ -1,15 +1,8 @@
 /*
  * Russian Voice Assistant modification for Changan A06 (C390).
- * Copyright (c) 2026 Tecrow. All rights reserved.
- *
- * Required Notice: Copyright (c) 2026 Tecrow. Reverse engineering prohibited.
- * Required Notice: Noncommercial use only. See LICENSE (PolyForm Noncommercial 1.0.0).
- *
- * Licensed under the PolyForm Noncommercial License 1.0.0 — COMMERCIAL USE IS NOT PERMITTED.
- * Reverse engineering, decompilation, and disassembly are NOT permitted under this license,
- * except to the minimum extent applicable mandatory law expressly allows. This source and the
- * compiled result are protected by copyright; unauthorized redistribution is prohibited.
- * Independent mod — NOT affiliated with or endorsed by Changan Automobile. See LICENSE.
+ * Copyright (c) 2026 Tecrow.
+ * Licensed under the PolyForm Noncommercial License 1.0.0 — noncommercial use only. See LICENSE.
+ * Independent modification — not affiliated with or endorsed by Changan Automobile.
  */
 package com.stand.bridge;
 
@@ -34,21 +27,6 @@ import static com.stand.bridge.Ru2Zh.*;
 public final class RuBridge {
     private static final String TAG = "RuBridge";
 
-    /**
-     * LICENSE / LEGAL NOTICE (kept as a runtime string so it survives compilation into the APK and
-     * is visible in any decompilation — do not strip). Russian Voice Assistant mod for Changan A06.
-     * Copyright (c) 2026 Tecrow. Licensed under PolyForm Noncommercial 1.0.0 — COMMERCIAL USE IS NOT
-     * PERMITTED. Reverse engineering / decompilation / disassembly are NOT permitted under this
-     * license (except where mandatory law expressly allows). Independent mod — NOT affiliated with,
-     * endorsed by, or produced by Changan Automobile. Full terms: assets/NOTICE.txt and LICENSE.
-     */
-    public static final String MOD_VERSION = "1.0.3";
-    public static final String NOTICE =
-        "Copyright (c) 2026 Tecrow. Author: Voronov Aleksei Sergeevich. "
-      + "Russian Voice Assistant mod for Changan A06 (C390) v1.0.3. "
-      + "Licensed under PolyForm Noncommercial 1.0.0 — NONCOMMERCIAL USE ONLY, COMMERCIAL USE PROHIBITED. "
-      + "Reverse engineering, decompilation and disassembly are PROHIBITED by this license. "
-      + "Independent modification, NOT affiliated with or endorsed by Changan Automobile.";
 
     // Stock TTS-engine registry (world-writable dir; the app runs as uid=system). Registering our
     // engine here is what makes install one-step — no adb edit of the config needed.
@@ -465,8 +443,6 @@ public final class RuBridge {
             showOnScreen("Команда требует подтверждения", TYPE_FEEDBACK);
         }};
         appCtx = ctx.getApplicationContext();
-        Log.i(TAG, NOTICE);   // emit legal notice (also anchors the string into the dex)
-        try { if (!com.stand.core.Guard.verify()) Log.w(TAG, com.stand.core.Guard.LICENSE); } catch (Throwable ignored) {}
         // VoiceApp.onCreate runs in EVERY process (main, :tts, :voiceprint), so init runs 3×. Load each
         // heavy model only in the process that actually uses it — otherwise GigaAM (~224 MB) and TeraTTS
         // (~300 MB) get loaded 3 times (measured: :voiceprint ballooned to ~686 MB for nothing).

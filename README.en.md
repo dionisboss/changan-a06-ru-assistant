@@ -7,7 +7,7 @@ An offline-first Russian voice assistant modification for the **Changan A06 / C3
 assistant (`com.incall.apps.speechassistant`) with Russian, while riding the stock NLU / actuation
 pipeline so real car commands keep working.
 
-**Author:** Voronov Aleksei Sergeevich · **Version:** 1.0.3 · Distributed free of charge.
+**Version:** 1.0.3 · Distributed free of charge.
 Independent modification — **not affiliated with, endorsed by, or produced by Changan Automobile.**
 
 ## What it does

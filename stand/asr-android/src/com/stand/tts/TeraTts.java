@@ -1,15 +1,8 @@
 /*
  * Russian Voice Assistant modification for Changan A06 (C390).
- * Copyright (c) 2026 Tecrow. All rights reserved.
- *
- * Required Notice: Copyright (c) 2026 Tecrow. Reverse engineering prohibited.
- * Required Notice: Noncommercial use only. See LICENSE (PolyForm Noncommercial 1.0.0).
- *
- * Licensed under the PolyForm Noncommercial License 1.0.0 — COMMERCIAL USE IS NOT PERMITTED.
- * Reverse engineering, decompilation, and disassembly are NOT permitted under this license,
- * except to the minimum extent applicable mandatory law expressly allows. This source and the
- * compiled result are protected by copyright; unauthorized redistribution is prohibited.
- * Independent mod — NOT affiliated with or endorsed by Changan Automobile. See LICENSE.
+ * Copyright (c) 2026 Tecrow.
+ * Licensed under the PolyForm Noncommercial License 1.0.0 — noncommercial use only. See LICENSE.
+ * Independent modification — not affiliated with or endorsed by Changan Automobile.
  */
 package com.stand.tts;
 
@@ -87,7 +80,6 @@ public final class TeraTts {
 
     public static void init(final Context c) {
         appCtx = c.getApplicationContext();
-        Log.i(TAG, com.stand.bridge.RuBridge.NOTICE);   // legal notice (anchored in dex)
         // init() is called once per PiperCaTts instance (config maps several engines to it); guard so
         // engine load + greeting prewarm run exactly ONCE, not 3× (which stormed the CPU at startup).
         if (isTtsProcess() && STARTED.compareAndSet(false, true)) new Thread(new Runnable() { public void run() {

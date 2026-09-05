@@ -1,17 +1,10 @@
-Copyright (c) 2026 Tecrow. All rights reserved.
-Author: Voronov Aleksei Sergeevich.
+Copyright (c) 2026 Tecrow.
 
 This software (the "Russian Voice Assistant modification for Changan A06 / C390",
 the "Software") is licensed, not sold, under the PolyForm Noncommercial License 1.0.0
 reproduced in full below. Commercial use is NOT permitted.
 
 Additional terms (part of this license grant):
-
-  * Reverse engineering, decompilation, and disassembly of the Software are
-    NOT permitted under this license, except to the minimum extent that such
-    activity cannot be prohibited under applicable mandatory law (e.g. for
-    interoperability where the law expressly allows it). This is a license
-    restriction, not a claim that reverse engineering is unlawful everywhere.
 
   * The Software is an independent modification and is NOT affiliated with,
     endorsed by, or produced by Changan Automobile. It builds upon proprietary
@@ -65,7 +58,7 @@ with the software.  For example, in most source code, one
 would put a comment near the top of each file beginning
 `Required Notice:` and containing all such lines.
 
-Required Notice: Copyright (c) 2026 Tecrow. Reverse engineering prohibited.
+Required Notice: Copyright (c) 2026 Tecrow.
 Required Notice: Noncommercial use only. See LICENSE (PolyForm Noncommercial 1.0.0).
 
 ## Changes and New Works License
