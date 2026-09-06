@@ -62,6 +62,17 @@ patched app installs as a normal system‑app update **without root**.
    ./build.sh ./SpeechAssistant.orig.apk out/speechassistant-ru2zh.apk
    ```
 
+## Prebuilt APK
+
+The built APK is not kept in git (~930 MB, contains the patched stock app); it is published under
+[Releases](https://github.com/voronoff2803/changan-a06-ru-assistant/releases): download
+`speechassistant-ru-vX.Y.Z.apk`, check the `.sha256`, install as below.
+
+Maintainer: `./release.sh 1.0.3 ./SpeechAssistant.orig.apk` builds, runs the tests, tags `v1.0.3` and
+uploads the APK with `gh`. Or push a `v*` tag and let `.github/workflows/release.yml` build and attach
+the APK (needs the secrets `STOCK_APK_URL`, `GIGAAM_MODEL_URL`, `TERA_SAMPLER_URL` — private URLs of
+the stock APK and the two large models). The mapper tests run on every push (`ci.yml`).
+
 ## Install
 
 ```sh

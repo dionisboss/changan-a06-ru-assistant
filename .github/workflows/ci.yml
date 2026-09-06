@@ -1,0 +1,25 @@
+name: tests
+on:
+  push:
+    branches: ["**"]
+    tags-ignore: ["v*"]
+  pull_request:
+jobs:
+  ru2zh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - name: ru2zh offline unit tests
+        run: sh ru2zh/translate-task/tests/run_tests.sh
+      - name: compile classes7 (javac only, no models needed)
+        run: |
+          # d8 is not needed to check that the sources compile
+          AJAR="$ANDROID_HOME/platforms/android-34/android.jar"
+          [ -f "$AJAR" ] || (yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-34" >/dev/null)
+          mkdir -p /tmp/stubs /tmp/cls
+          javac -source 17 -target 17 -d /tmp/stubs -classpath "$AJAR" $(find stand/asr-android/src-stubs -name '*.java')
+          javac -source 17 -target 17 -encoding UTF-8 -d /tmp/cls \
+            -classpath "$AJAR:stand/asr-android/libs/ort-android-classes.jar:/tmp/stubs" \
+            $(find stand/asr-android/src/com/stand -name '*.java') $(find stand/asr-android/sherpa-src -name '*.java')

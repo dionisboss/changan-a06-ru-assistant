@@ -134,6 +134,19 @@
 Бэкенд для онлайн‑части задаётся константой `BACKEND` в `RuBridge.java`; при недоступной сети
 или `OFFLINE_ONLY=true` ассистент работает полностью офлайн.
 
+## Готовый APK
+
+Собранный APK не хранится в git (он ~930 МБ и содержит патченное штатное приложение), а
+публикуется в [Releases](https://github.com/voronoff2803/changan-a06-ru-assistant/releases):
+скачайте `speechassistant-ru-vX.Y.Z.apk`, сверьте `.sha256` и ставьте по инструкции ниже.
+
+Публикация релиза (для мейнтейнера): `./release.sh 1.0.3 ./SpeechAssistant.orig.apk` — собирает,
+гоняет тесты, ставит тег `v1.0.3` и загружает APK в релиз через `gh`. Альтернатива —
+workflow `.github/workflows/release.yml`: по тегу `v*` GitHub Actions сам собирает и прикладывает
+APK к релизу; ему нужны секреты `STOCK_APK_URL`, `GIGAAM_MODEL_URL`, `TERA_SAMPLER_URL`
+(приватные ссылки на штатный APK и две большие модели). Тесты маппера гоняются на каждый push
+(`.github/workflows/ci.yml`).
+
 ## Установка
 
 ```sh
