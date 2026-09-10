@@ -611,7 +611,8 @@ final class Ru2Zh {
             && !s.contains("шторк") && !s.contains("солнцезащит")
             && !s.contains("обзор") && !s.contains("камер")) {
             int p = percentOf(s);
-            if (p == 50) return "天窗开一半";
+            if (p == 50) return "天窗开一半";                                                  // SET_SUNROOF_WINDOW ratio=50% (captured)
+            if (p > 0) return "天窗开到百分之" + p;                                           // same ratio slot as 车窗开到百分之N
             return off ? "关闭天窗" : "打开天窗";
         }
         if (s.contains("шторк") || s.contains("солнцезащит")) {
