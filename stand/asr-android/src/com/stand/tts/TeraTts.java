@@ -301,28 +301,29 @@ public final class TeraTts {
         return many;
     }
 
-    /** Rephrase common masculine-past confirmations as first-person present (gender-neutral). */
+    /** Rephrase a first-person past confirmation as first-person present (gender-neutral):
+     *  "Установил"/"Установила" -> "Ставлю". Whole words only, and only the masculine/feminine singular.
+     *
+     *  The previous version replaced substrings in map order, so the masculine entry matched the feminine
+     *  form first and left its ending behind: "Установила" -> "Ставлюа", "Включила" -> "Включаюа". Matching
+     *  substrings also rewrote unrelated words: "Спасибо, вы открыли мне новое" -> "вы открываюи мне новое".
+     *  One entry per stem plus an optional "а" fixes both; the plural "открыли" is someone else's action
+     *  and is deliberately left alone. */
     private static String femPresent(String s) {
-        String[][] map = {
-            {"Установил","Ставлю"},{"Установила","Ставлю"},
-            {"Открыл","Открываю"},{"Открыла","Открываю"},
-            {"Закрыл","Закрываю"},{"Закрыла","Закрываю"},
-            {"Включил","Включаю"},{"Включила","Включаю"},
-            {"Выключил","Выключаю"},{"Выключила","Выключаю"},
-            {"Отключил","Отключаю"},{"Отключила","Отключаю"},
-            {"Поднял","Поднимаю"},{"Подняла","Поднимаю"},
-            {"Опустил","Опускаю"},{"Опустила","Опускаю"},
-            {"Увеличил","Увеличиваю"},{"Уменьшил","Уменьшаю"},
-            {"Переключил","Переключаю"},{"Настроил","Настраиваю"},
-            {"Запустил","Запускаю"},{"Сделал","Делаю"},
-            {"Готов ","Готова "}
-        };
-        for (String[] p : map) {
-            s = s.replace(p[0], p[1]);
-            s = s.replace(deCap(p[0]), deCap(p[1]));   // lowercase mid-sentence occurrences too
+        for (String[] p : PRESENT) {
+            s = s.replaceAll("(?<![А-Яа-яЁё])" + p[0] + "а?(?![А-Яа-яЁё])", p[1]);
+            s = s.replaceAll("(?<![А-Яа-яЁё])" + deCap(p[0]) + "а?(?![А-Яа-яЁё])", deCap(p[1]));
         }
         return s;
     }
+    /** Masculine singular stem (the feminine adds "а") -> first-person present. */
+    private static final String[][] PRESENT = {
+        {"Установил","Ставлю"},{"Открыл","Открываю"},{"Закрыл","Закрываю"},
+        {"Включил","Включаю"},{"Выключил","Выключаю"},{"Отключил","Отключаю"},
+        {"Поднял","Поднимаю"},{"Опустил","Опускаю"},{"Увеличил","Увеличиваю"},
+        {"Уменьшил","Уменьшаю"},{"Переключил","Переключаю"},{"Настроил","Настраиваю"},
+        {"Запустил","Запускаю"},{"Сделал","Делаю"},{"Готов","Готова"}
+    };
     private static String deCap(String w) {
         return w.isEmpty() ? w : Character.toLowerCase(w.charAt(0)) + w.substring(1);
     }
