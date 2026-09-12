@@ -66,40 +66,55 @@ public class PiperCaTts implements ICaStreamTts {
         // dropped silently instead of translated+spoken. Mixed RU+CJK still speaks (handled below).
         if (com.stand.bridge.RuBridge.isChineseSpeech(text)) { Log.i(TAG, "sendText: IGNORED Chinese TTS request: [" + text + "]"); return 0; }
         try {
-            byte[] pcm;
-            if (TONE_TEST) { pcm = tone(); Log.i(TAG, "sendText TONE for: " + text); }
-            else {
-                String ru = com.stand.bridge.RuBridge.ttsTextToRu(text);  // ZH->RU (tips), Cyrillic passthrough
-                if (ru == null || ru.trim().isEmpty()) { Log.i(TAG, "sendText untranslatable: " + text); return 0; }
-                Log.i(TAG, "sendText: [" + text + "] -> " + ru);
-                // Steering-key/knob wake: build_sa (WAKE_CHIME) makes the click tip a fixed marker «Слушаю»;
-                // play the chime for it instead of speech so the driver can talk right away (SR is already
-                // recording — startRec precedes the tip). Voice wake keeps its spoken «Чем могу помочь».
-                byte[] chime = WAKE_CHIME && com.stand.bridge.RuBridge.isClickWakeMarker(ru) ? WakeChime.pcm16(appCtx, RATE) : null;
-                if (chime != null) { Log.i(TAG, "key-wake marker -> chime (" + chime.length + " bytes)"); pcm = chime; }
-                else {
-                    pcm = TeraTts.synthPcm16(ru, RATE);
-                    // Voice wake («Чем могу помочь»): owner wants the same chime played IN PARALLEL with the
-                    // spoken greeting — mix the two PCM streams (both from t=0) into one utterance.
-                    if (WAKE_CHIME && com.stand.bridge.RuBridge.isWakeGreeting(ru)) {
-                        byte[] ch = WakeChime.pcm16(appCtx, RATE);
-                        if (ch != null) { pcm = WakeChime.mix(pcm, ch); Log.i(TAG, "voice-wake greeting + chime mixed (" + pcm.length + " bytes)"); }
-                    }
-                }
+            if (TONE_TEST) { push(c, tone()); Log.i(TAG, "sendText TONE for: " + text); return 0; }
+            String ru = com.stand.bridge.RuBridge.ttsTextToRu(text);  // ZH->RU (tips), Cyrillic passthrough
+            if (ru == null || ru.trim().isEmpty()) { Log.i(TAG, "sendText untranslatable: " + text); return 0; }
+            Log.i(TAG, "sendText: [" + text + "] -> " + ru);
+            // Steering-key/knob wake: build_sa (WAKE_CHIME) makes the click tip a fixed marker «Слушаю»;
+            // play the chime for it instead of speech so the driver can talk right away (SR is already
+            // recording — startRec precedes the tip). Voice wake keeps its spoken «Чем могу помочь».
+            byte[] chime = WAKE_CHIME && com.stand.bridge.RuBridge.isClickWakeMarker(ru) ? WakeChime.pcm16(appCtx, RATE) : null;
+            if (chime != null) { Log.i(TAG, "key-wake marker -> chime (" + chime.length + " bytes)"); push(c, chime); return 0; }
+            if (WAKE_CHIME && com.stand.bridge.RuBridge.isWakeGreeting(ru)) {
+                // Voice wake («Чем могу помочь»): owner wants the same chime played IN PARALLEL with the
+                // spoken greeting — mix the two PCM streams (both from t=0) into one utterance.
+                byte[] pcm = TeraTts.synthPcm16(ru, RATE);
+                byte[] ch = WakeChime.pcm16(appCtx, RATE);
+                if (ch != null) { pcm = WakeChime.mix(pcm, ch); Log.i(TAG, "voice-wake greeting + chime mixed (" + pcm.length + " bytes)"); }
+                push(c, pcm); return 0;
             }
-            if (stopReq || pcm.length == 0) return 0;
-            if (!begun) { begun = true; c.onMessage(1, ""); }          // onBegin
-            int total = 0, lastRet = 0;
-            for (int off = 0; off < pcm.length && !stopReq; off += CHUNK) {
-                int n = Math.min(CHUNK, pcm.length - off);
-                byte[] b = new byte[n];
-                System.arraycopy(pcm, off, b, 0, n);
-                lastRet = c.onAudioData(b, n);
-                total += n;
+            // Sentence by sentence, in the native streaming contract: the first sentence is synthesized
+            // and handed to the stock player at once (it starts playing as chunks arrive), the next ones
+            // are synthesized while it plays. Synthesis is faster than playback, so speech is continuous
+            // and a two-sentence answer starts after ~1 s instead of after the whole synthesis.
+            String[] parts = TeraTts.sentences(ru);
+            int total = 0;
+            for (int i = 0; i < parts.length && !stopReq; i++) {
+                long t0 = System.currentTimeMillis();
+                byte[] pcm = TeraTts.synthPcm16(parts[i], RATE);
+                if (pcm.length == 0) { Log.w(TAG, "sendText: empty synth for sentence " + (i + 1) + ": " + parts[i]); continue; }
+                Log.i(TAG, "sentence " + (i + 1) + "/" + parts.length + " synth " + (System.currentTimeMillis() - t0) + "ms, " + pcm.length + " b");
+                total += push(c, pcm);
             }
-            Log.i(TAG, "pushed " + total + " bytes @" + RATE + ", onAudioData lastRet=" + lastRet);
+            Log.i(TAG, "pushed " + total + " bytes @" + RATE + " (" + parts.length + " sentence(s))");
         } catch (Throwable t) { Log.e(TAG, "sendText", t); }
         return 0;
+    }
+
+    /** Hand one PCM buffer to the stock player in ~100 ms chunks (onBegin once per session). */
+    private int push(ICaTtsCallback c, byte[] pcm) {
+        if (pcm == null || pcm.length == 0 || stopReq) return 0;
+        if (!begun) { begun = true; c.onMessage(1, ""); }          // onBegin
+        int total = 0, lastRet = 0;
+        for (int off = 0; off < pcm.length && !stopReq; off += CHUNK) {
+            int n = Math.min(CHUNK, pcm.length - off);
+            byte[] b = new byte[n];
+            System.arraycopy(pcm, off, b, 0, n);
+            lastRet = c.onAudioData(b, n);
+            total += n;
+        }
+        if (lastRet != 0) Log.w(TAG, "onAudioData ret=" + lastRet);
+        return total;
     }
 
     @Override public int sendText(String text, String param) { return sendText(text); }

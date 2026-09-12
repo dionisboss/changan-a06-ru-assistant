@@ -119,6 +119,16 @@ public final class TeraTts {
         } catch (Throwable t) { Log.e(TAG, "ensure", t); return false; }
     }
 
+    /** Split a reply into sentences (terminator + whitespace) so the native engine can stream them one by
+     *  one. «22.5 градуса» stays intact (no whitespace after the dot); a text without terminators is one part. */
+    public static String[] sentences(String text) {
+        java.util.List<String> out = new java.util.ArrayList<String>();
+        if (text != null) for (String part : text.trim().split("(?<=[.!?…])\\s+")) {
+            if (!part.trim().isEmpty()) out.add(part.trim());
+        }
+        return out.toArray(new String[0]);
+    }
+
     /** Synthesize Russian text to mono 16-bit LE PCM at targetRate (resampled from 44100). Empty on failure. */
     public static byte[] synthPcm16(String text, int targetRate) {
         try {
