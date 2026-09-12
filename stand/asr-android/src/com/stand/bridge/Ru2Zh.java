@@ -77,6 +77,7 @@ final class Ru2Zh {
     private static final String ADJ = "(ый|ая|ое|ые|ую|ого|ой|ом|ому|ым|ыми|ых)";
     private static final java.util.regex.Pattern RIGHT_WORD = word("справа|прав" + ADJ);
     private static final java.util.regex.Pattern LEFT_WORD  = word("слева|лев" + ADJ);
+    private static final java.util.regex.Pattern DRL_WORD   = word("дхо|ходов" + ADJ + "|ходовые");
     private static final java.util.regex.Pattern ALL_WORD   = word("все|всем|всех|всеми|весь|везде|оба|обе|обоим|каждое|каждому");
     private static java.util.regex.Pattern word(String alt) {
         return java.util.regex.Pattern.compile("(?<![а-я])(?:" + alt + ")(?![а-я])");
@@ -621,7 +622,7 @@ final class Ru2Zh {
             return off ? "关闭遮阳帘" : "打开遮阳帘";                                        // SET_SUN_SHADE
         }
         if (s.contains("все") && (s.contains("открой") || s.contains("закрой"))
-            && !s.contains("приложен") && !win)
+            && !s.contains("приложен") && !win && s.trim().split("\\s+").length <= 3)
             return off ? "一键全关" : "一键全开";                                            // OPEN/CLOSE_ALL_ONE_KEY
         return null;
     }
@@ -729,7 +730,7 @@ final class Ru2Zh {
         if ((s.contains("потолоч") || s.contains("потолк") || s.contains("верхний свет")) && !s.contains("подсветк"))
             return (off ? "关闭" : "打开") + "车顶灯";                                         // catalog: 车顶灯
         if (s.contains("габарит")) return (off ? "关闭" : "打开") + "示廓灯";                 // OP_OUTLINE_LIGHT
-        if (s.contains("стояночн") || s.contains("позиционн") || s.contains("ходов") || s.contains("дхо"))
+        if (s.contains("стояночн") || s.contains("позиционн") || hasWord(s, DRL_WORD))
             return (off ? "关闭" : "打开") + "位置灯";                                        // OP_SIDE_LIGHTS (+ДХО: ближайший интент)
         if (s.contains("задн") && (s.contains("фонар") || s.contains("фонарь"))) return (off ? "关闭" : "打开") + "尾灯"; // OP_TAILLIGHT
         if (s.contains("багажник") && (s.contains("свет") || s.contains("ламп"))) return (off ? "关闭" : "打开") + "后备箱灯"; // OP_TRUNK_LIGHT
@@ -937,6 +938,8 @@ final class Ru2Zh {
             return unsafeGate((off ? "关闭" : "打开") + "圆心掉头");
         String dm = zhDriveModeOf(s);
         if (!dm.isEmpty() && !s.contains("музы") && !s.contains("звук") && !s.contains("подсветк") && !s.contains("карт")
+            && !s.contains("сиден") && !s.contains("кресл") && !s.contains("спинк") && !s.contains("массаж")
+            && !s.contains("экран") && !s.contains("холодильник") && !s.contains("климат") && !s.contains("кондиц")
             && (s.contains("режим") || s.contains("вожден") || s.contains("переключ")
                 || s.contains("включи") || s.trim().equals("эко") || s.trim().equals("спорт")))
             return "切换到" + dm;                                                             // SET_DRIVING_MODE
@@ -999,6 +1002,9 @@ final class Ru2Zh {
             return "我要睡一会儿";
         }
         if (s.contains("холодильник") || s.contains("морозилк") || s.contains("холодос")) {
+            // «температура холодильника, подходящая для белого вина» / «какую поставить» — a question, not a
+            // setting: the backend answers (and may return the concrete temperature as a command)
+            if (s.contains("подходящ") || s.contains("какая") || s.contains("какую") || s.contains("сколько")) return null;
             // проверено на авто: 把车载冰箱温度调到5度 / 零下5度 («минус пять» = 零下, ниже нуля)
             if (n >= 0 && n <= 20 && (s.contains("градус") || s.contains("на ") || s.contains("минус"))) {
                 boolean neg = s.contains("минус") || s.contains("ниже нуля") || s.contains("-");
@@ -1076,6 +1082,7 @@ final class Ru2Zh {
         // stem "кругов"+"обзор" covers all cases: «круговой обзор», «камера КРУГОВОГО ОБЗОРА», «круговым
         // обзором»; «вид сверху» = the bird's-eye SVM view. (Owner's preferred term is «круговой обзор».)
         if (s.contains("360") || (s.contains("кругов") && s.contains("обзор"))
+            || (s.contains("обзор") && (numIn(s) == 360 || s.contains("триста шестьдесят")))
             || (s.contains("панорам") && s.contains("обзор"))                                  // «панорамный обзор» = 360 (NOT the sunroof)
             || (s.contains("сверху") && (s.contains("вид") || s.contains("камер") || s.contains("покажи")))
             || (s.contains("камер") && (numIn(s) == 360 || s.contains("триста шестьдесят"))))  // "камера триста шестьдесят"
@@ -1186,8 +1193,8 @@ final class Ru2Zh {
                 int i = ordinalIn(who); if (i > 0) return "打第" + i + "个";                    // LIST_SELECTION_PHONE
             }
             if (who.matches("[\\d\\s+-]+")) return "拨打" + who.replaceAll("[^\\d+]", "");     // digits -> dial number
-            if (!who.isEmpty()) return "给" + who + "打电话";  // CALL_REQUEST — RU contact name as-is
-            return null;
+            if (!who.isEmpty() && who.split("\\s+").length <= 3) return "给" + who + "打电话";  // CALL_REQUEST — RU contact name as-is
+            return null;                                       // «позвони пушкина новые ворота 11» = an address, not a contact
         }
         if (s.contains("перезвони")) return "回拨";                                           // CALL_BACK
         if (s.contains("ответь") || s.contains("возьми трубку") || s.contains("прими звонок")) return "接听"; // ANSWER_CALL
@@ -1290,9 +1297,9 @@ final class Ru2Zh {
                 return "播放";  // проверено на авто: голое 播放 запускает проигрыватель (оффлайн)
             String w = s.trim();
             if (w.equals("музыку") || w.equals("музыка") || w.equals("музычку")) return "播放"; // bare "музыку!"
-            String what = tailAfter(s, "включи");
-            if (what.isEmpty()) what = tailAfter(s, "поставь");
-            if (!what.isEmpty()) return "我想听" + what;  // free media item as-is
+            if (w.matches("(включи|поставь|запусти|давай|вруби|включай) (песню|песенку|песни|музон|трек|что-нибудь)")) return "播放"; // unnamed
+            // A named song/artist («включи песню снуп дог») can't be expressed in Chinese with a Russian tail —
+            // the stock NLU never parses it. Leave it to the backend (it launches the user's music app).
         }
         if (s.contains("перемотай")) {
             if (s.contains("начал")) return "重新播放";                                       // "перемотай в начало"
@@ -1401,7 +1408,10 @@ final class Ru2Zh {
             if (s.contains("страниц")) return "第" + i + "页";                                // PAGE_SELECTION
             if (s.contains("удали")) return "删除第" + i + "个";                              // DELETE_INDEX
             if (s.contains("позвони") || s.contains("набери")) return "打第" + i + "个";      // LIST_SELECTION_PHONE
-            if (s.contains("включи") || s.contains("песн") || s.contains("трек")) return "播放第" + i + "首"; // LIST_SELECTION_MEDIA
+            // LIST_SELECTION_MEDIA only with a track word or a bare two-word «включи третью»: a number inside a longer
+            // phrase («рекуперацию на десять процентов», «зарядку с пяти утра») is NOT a track index
+            if (s.contains("песн") || s.contains("трек") || s.contains("композиц")
+                || w.matches("(включи|поставь|запусти) \\S+")) return "播放第" + i + "首";
             if (s.contains("выбери") || w.matches("(перв|втор|трет|четверт|пят)\\S*")) return "第" + i + "个"; // LIST_SELECTION
         }
         if (s.contains("листай") || s.contains("следующая страница")) return "下一页";        // TURN_PAGE
