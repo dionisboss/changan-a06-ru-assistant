@@ -630,12 +630,22 @@ final class Ru2Zh {
     // ---------------------------------------------------------------- carControl: doors / trunks / locks
 
     private static String zhDoorsLocks(String s, boolean off, String z) {
-        if (s.contains("багажник") && !s.contains("свет") && !s.contains("лампа")) {
+        // Split tailgate (E07: the bed roof = upper part, the drop-down board = lower part). «крыша/верх
+        // багажника» -> 上尾门, «борт» -> 下尾门 («опусти/откинь борт» = OPEN, «подними борт» = CLOSE).
+        // «крышКа багажника» stays the plain trunk. Wording 上尾门/下尾门 comes from the intent names
+        // (OP_UPPER_TAILGATE / OP_LOWER_TAILGATE) — not yet confirmed on an E07.
+        boolean board = s.contains("борт") && !s.contains("бортов") && !s.contains("на борту");
+        if ((s.contains("багажник") || s.contains("кузов") || board) && !s.contains("свет") && !s.contains("лампа")) {
             if (s.contains("стекл") || s.contains("окн") || s.contains("окош"))
                 return unsafeGate((off ? "关闭" : "打开") + "后备窗");                        // catalog: 后备窗 (tailgate glass)
             if (s.contains("передн") || s.contains("фрунк")) return unsafeGate(off ? "关闭前备箱" : "打开前备箱"); // OP_FRUNK
-            if (s.contains("верхн")) return unsafeGate(off ? "关闭上尾门" : "打开上尾门");   // OP_UPPER_TAILGATE
-            if (s.contains("нижн") || s.contains("борт")) return unsafeGate(off ? "关闭下尾门" : "打开下尾门"); // OP_LOWER_TAILGATE
+            boolean roof = (s.contains("крыша") || s.contains("крышу") || s.contains("крыши")) && !s.contains("крышк");
+            if (s.contains("верхн") || s.contains("верх ") || roof)
+                return unsafeGate(off ? "关闭上尾门" : "打开上尾门");                           // OP_UPPER_TAILGATE
+            if (s.contains("нижн") || board) {
+                boolean close = s.contains("подним") || s.contains("подыми") || s.contains("закр") || s.contains("верни");
+                return unsafeGate(close ? "关闭下尾门" : "打开下尾门");                        // OP_LOWER_TAILGATE
+            }
             return unsafeGate(off ? "关闭后备箱" : "打开后备箱");                            // OP_TRUNK
         }
         if (s.contains("капот")) return unsafeGate(off ? "关闭前备箱" : "打开前备箱");       // OP_FRUNK
