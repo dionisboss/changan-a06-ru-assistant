@@ -7,7 +7,7 @@ An offline-first Russian voice assistant modification for the **Changan A06 / C3
 assistant (`com.incall.apps.speechassistant`) with Russian, while riding the stock NLU / actuation
 pipeline so real car commands keep working.
 
-**Version:** 1.0.3 · Distributed free of charge.
+**Version:** 1.0.4 · Distributed free of charge.
 Independent modification — **not affiliated with, endorsed by, or produced by Changan Automobile.**
 
 ## What it does
@@ -68,7 +68,7 @@ The built APK is not kept in git (~930 MB, contains the patched stock app); it i
 [Releases](https://github.com/voronoff2803/changan-a06-ru-assistant/releases): download
 `speechassistant-ru-vX.Y.Z.apk`, check the `.sha256`, install as below.
 
-Maintainer: `./release.sh 1.0.3 ./SpeechAssistant.orig.apk` builds, runs the tests, tags `v1.0.3` and
+Maintainer: `./release.sh 1.0.4 ./SpeechAssistant.orig.apk` builds, runs the tests, tags `v1.0.4` and
 uploads the APK with `gh`. Or push a `v*` tag and let `.github/workflows/release.yml` build and attach
 the APK (needs the secrets `STOCK_APK_URL`, `GIGAAM_MODEL_URL`, `TERA_SAMPLER_URL` — private URLs of
 the stock APK and the two large models). The mapper tests run on every push (`ci.yml`).
