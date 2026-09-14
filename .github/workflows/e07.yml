@@ -1,0 +1,30 @@
+name: E07 source checks
+on:
+  push:
+    branches: ["e07/**"]
+  workflow_dispatch:
+jobs:
+  host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: "17"}
+      - name: Archived production source hashes
+        run: |
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root = Path('e07')
+          for name, expected in json.loads((root / 'SOURCE_MANIFEST.json').read_text())['source_sha256'].items():
+              if name != 'build.py':
+                  assert hashlib.sha256((root / name).read_bytes()).hexdigest() == expected, name
+          PY
+      - name: E07 mapper, replies, playback, dependencies and passive probe
+        run: |
+          sh e07/tests/run_regression.sh
+          python3 e07/tests/run_reply_tests.py
+          python3 e07/tests/run_tts_playback_tests.py
+          python3 e07/tests/run_se_probe_tests.py
+          python3 e07/tests/run_micmix_tests.py
+          python3 e07/tests/test_prepare_dependencies.py

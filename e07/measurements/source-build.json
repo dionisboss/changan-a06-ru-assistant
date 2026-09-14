@@ -1,0 +1,23 @@
+{
+  "archived_apk_sha256": "afd7b3a5c8c506ffb76f28e8e51fbb1774aba7ec2c72c7b0829fb3e1a993ca67",
+  "rebuilt_apk_sha256": "52be199684c1484cbc12c4e2e5d18bdfbb334acf2d239a87fed0ed4e13c0467a",
+  "dex_sha256": {
+    "classes5.dex": {
+      "archived": "2d2682e0f82b8f2f1d8fabeb6d047f187c45bbcff8008cd453ab019754a6f2a6",
+      "rebuilt": "1aab873ce0a419752e5d0cc4bf1b4b038b022aa8fb3c407333a6c94a554cf301"
+    },
+    "classes7.dex": {
+      "archived": "7ae3c7db941e80aefe13d56355e430f7d2dfbf7ed64a407dee1bfb448e6b0646",
+      "rebuilt": "7ae3c7db941e80aefe13d56355e430f7d2dfbf7ed64a407dee1bfb448e6b0646"
+    }
+  },
+  "classes5_disassembly_identical_classes": 8052,
+  "rebuilt_installed": false,
+  "runtime_checks": "PASS",
+  "mapper_checks": {
+    "legacy": 980,
+    "safety": 2048,
+    "compatibility": 390
+  },
+  "smali_regression": "PASS"
+}

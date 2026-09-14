@@ -1,5 +1,7 @@
 # build artifacts
 /out/
+/e07/out/
+**/__pycache__/
 stand/work/
 stand/asr-android/build/
 **/*.dex

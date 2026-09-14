@@ -1,0 +1,432 @@
+[
+  {
+    "path": "assets/gigaam/model.int8.onnx",
+    "bytes": 224721476,
+    "sha256": "f86ebfa0429ced91be6054fc344827e9c6c2572f3c318416cd974b06f66437ec"
+  },
+  {
+    "path": "assets/gigaam/tokens.txt",
+    "bytes": 196,
+    "sha256": "17cc514451bcceac9c280068c71502f8448f99e9fb1456b8d0761651fd0392f2"
+  },
+  {
+    "path": "assets/tera/models/duration_predictor.onnx",
+    "bytes": 1572411,
+    "sha256": "15248b4751493fe48543f01164cd9b74d103b4483c63367a01c344442ebf03d8"
+  },
+  {
+    "path": "assets/tera/models/sampler_distilled_cfg3_8step.onnx",
+    "bytes": 256417643,
+    "sha256": "921a050f19794bf97234ca8ffc0298559eaca466d9f7f3b72ec41dfefb37acc6"
+  },
+  {
+    "path": "assets/tera/models/text_encoder.onnx",
+    "bytes": 27910305,
+    "sha256": "d59b7911fe9e465988f26bedbf7c34ef9b2c5588d9b0da5f86d41340a3324a12"
+  },
+  {
+    "path": "assets/tera/models/vocoder.onnx",
+    "bytes": 101416199,
+    "sha256": "d4e4cf9a9b9de8cca28f309c4cb7735327322b5a764ba61dfc3706c3c7942c07"
+  },
+  {
+    "path": "assets/tera/ruaccent.bin",
+    "bytes": 2097138,
+    "sha256": "b26662a8e678a482bf240c3acd0a870753f34626acd3fc2947b5526b372e1369"
+  },
+  {
+    "path": "assets/tera/styles/ru_f2/style_dp.bin",
+    "bytes": 512,
+    "sha256": "e634e3cff9ae04ff107d6d094d820bb0863d74fd00cff1483c70859c5e54480c"
+  },
+  {
+    "path": "assets/tera/styles/ru_f2/style_ttl.bin",
+    "bytes": 51200,
+    "sha256": "5a5a72234487075ca26383e04e8d1e28259f968becb9e981ec0c2bbfed2356d8"
+  },
+  {
+    "path": "assets/tera/unicode_indexer.json",
+    "bytes": 262171,
+    "sha256": "c1ed0c0804b836bd0e38170ae7b5b00647d818c5f659fcf21fa0feea950aa04d"
+  },
+  {
+    "path": "jni/arm64-v8a/libonnxruntime.so",
+    "bytes": 16035904,
+    "sha256": "26cc1b284cc22f87a8d4c2c2424b091dce3a00d9d3b74113863405d603f048d3"
+  },
+  {
+    "path": "jni/arm64-v8a/libonnxruntime4j_jni.so",
+    "bytes": 760104,
+    "sha256": "8fc7e20fba98c5601582ae14c8c7fed194644856fc315d6184ed1776c50d9272"
+  },
+  {
+    "path": "jni/arm64-v8a/libsherpa-onnx-jni.so",
+    "bytes": 4495384,
+    "sha256": "09e9a2f0c71a167a304fd03c1a2b87ccd7af3e38f42838655be5f76965f3bb6a"
+  },
+  {
+    "path": "libs/ort-android-classes.jar",
+    "bytes": 102562,
+    "sha256": "2cdf4a2884360520cc241ccff9343721b3d275685bf754d46acdbf4994f99204"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/AudioEvent.java",
+    "bytes": 648,
+    "sha256": "9aafd01ed1c0e1f9842b0724452719d67858b7d42ba4a18d34f815f87dc8d2ff"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/AudioTagging.java",
+    "bytes": 1535,
+    "sha256": "479fd461276dcc636501ae14159b2db257a868628da095963bfccbd491818e34"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/AudioTaggingConfig.java",
+    "bytes": 1120,
+    "sha256": "fd43fb7eef440b92b063eea92c99dab9ede2ab8779a5e781aed7efde8009ff1b"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/AudioTaggingModelConfig.java",
+    "bytes": 1730,
+    "sha256": "8a07e9133405335566426c6eddc1be62c34a6760540b2bb904888847553d237f"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/DenoisedAudio.java",
+    "bytes": 742,
+    "sha256": "52595c55a4a2b70ac9e1960070e1d7277989e42e62cbce4dd23634f97aebbb39"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/EndpointConfig.java",
+    "bytes": 1923,
+    "sha256": "e40597372b78aea01423dc795b92c94efca5fe9d2d2d9a74575391f6ffb1650e"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/EndpointRule.java",
+    "bytes": 1705,
+    "sha256": "f10ff069e97e7698ca18b90253660af37c5063a6f6c0f62d2600bc5f86acd158"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/FastClusteringConfig.java",
+    "bytes": 1035,
+    "sha256": "068cbde28b5e109013d030a98caa4a1f310c39e71fcf75847e3308130246f127"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/FeatureConfig.java",
+    "bytes": 1080,
+    "sha256": "a697b1a2f51fdaae97a2194b705413338656ef55d5f659d75a3ccf97b0f8cb34"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/GeneratedAudio.java",
+    "bytes": 744,
+    "sha256": "8d34bd0d72d3c2cd770d808805dd6f37157a8daf0af3bc2dc2c92777646371a9"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/KeywordSpotter.java",
+    "bytes": 1840,
+    "sha256": "f6443c601af97b0134152df82f72dcd2cb5414089a4efcdd06da4ab951b00f64"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/KeywordSpotterConfig.java",
+    "bytes": 2513,
+    "sha256": "bf035bae69097ba8fa57b0a1ab153223ab8e7beac33097f0680818a79f7e29ed"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/KeywordSpotterResult.java",
+    "bytes": 608,
+    "sha256": "961cf92aac86a630c6d1aaf67b3b78f72d353a4a4411c29bcf4b09bc7c370b39"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineFireRedAsrModelConfig.java",
+    "bytes": 983,
+    "sha256": "d43eed2991258768f5d2710344b3af136ef2c1feb5e4d0176e19edae318c8b5c"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineModelConfig.java",
+    "bytes": 5851,
+    "sha256": "8d0fb91fd5634e8e07c0614f5ead9c01fc05d719088044b39627630817a6517a"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineMoonshineModelConfig.java",
+    "bytes": 1807,
+    "sha256": "dd64e366e088c169874d68c9715daf9cdc9cd39ed62687fa2768de4d2c6422f0"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineNemoEncDecCtcModelConfig.java",
+    "bytes": 714,
+    "sha256": "f61ce5dd40383cb322e0646b07eae9b398e67dbf5bef1bcac712bfbe22eae2e7"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineParaformerModelConfig.java",
+    "bytes": 703,
+    "sha256": "5234cfb28e0041a855f57535a4df10f2c65a050e02884f4936768a5edd9091c2"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflinePunctuation.java",
+    "bytes": 877,
+    "sha256": "bdfb86ee696a6c0b69e54c3a3ef50afd10d7b8a11dd343d0a6ffc04bcc5533a4"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflinePunctuationConfig.java",
+    "bytes": 824,
+    "sha256": "b48fb0c65c492babe1dca5bf8b7c8ece4df387ade56d2985a0fe14b7d1948d61"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflinePunctuationModelConfig.java",
+    "bytes": 1505,
+    "sha256": "fab323e54b02406f52708e7ac14e454f46ce1437796514fdc687ce00ac0b6561"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineRecognizer.java",
+    "bytes": 1539,
+    "sha256": "6bd8981d9112748f261aa8c849fb877e1840ac1426784578a44dae19e0f53ed0"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineRecognizerConfig.java",
+    "bytes": 3045,
+    "sha256": "4be31f33395c68df5000c352d5a75410f8855f362e4347508c149f272f7e7176"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineRecognizerResult.java",
+    "bytes": 1004,
+    "sha256": "a2447983b110d74a117aa325090f1f85be86975955f0f295adf2170e00f198a2"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineSenseVoiceModelConfig.java",
+    "bytes": 1513,
+    "sha256": "1c1624dd372b0f0b9f1641dc25994134302c6c78b4f0fc03f1de80d02733bb9b"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineSpeakerDiarization.java",
+    "bytes": 1888,
+    "sha256": "b9d72ea6d8def36c24c47ae88b7d0cfd17314621d355f5d014187f4f29993c6d"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineSpeakerDiarizationCallback.java",
+    "bytes": 219,
+    "sha256": "f81fa41c3beacf3a8ae75ea4687cf8d78ea91762364eeaf5d8f4b56ba1a28e40"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineSpeakerDiarizationConfig.java",
+    "bytes": 2535,
+    "sha256": "9dca1b66f2103c416cb89c4ef8ce6993e128daf8c19b529d311f24a741008085"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineSpeakerDiarizationSegment.java",
+    "bytes": 560,
+    "sha256": "84a13cf38312011b72f8109bf66ffc094568c69062841f793c3a7a4d68b9194f"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineSpeakerSegmentationModelConfig.java",
+    "bytes": 1598,
+    "sha256": "d1773182a681515df0cbecc4f18a950340b5255d6dbf24793702dfb4ca1cecdc"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineSpeakerSegmentationPyannoteModelConfig.java",
+    "bytes": 770,
+    "sha256": "6d9310b0461b6bcb58440b9f9fc095d76104e88567fd0b2cef6992c13740a035"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineSpeechDenoiser.java",
+    "bytes": 972,
+    "sha256": "64d4c080a99432a17396331ee535c8eb8f57eca8ab4e8860221f98192a9b6b11"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineSpeechDenoiserConfig.java",
+    "bytes": 791,
+    "sha256": "9e0e739b16e70671289f376bd03b37f23f4492ce6de895625248b9f9b14ba179"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineSpeechDenoiserGtcrnModelConfig.java",
+    "bytes": 737,
+    "sha256": "6d38a1b742ee63735762def9896bdf6eeb84ba77fbe9d59130f9eca3e29ab32e"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineSpeechDenoiserModelConfig.java",
+    "bytes": 1522,
+    "sha256": "c9ffc7c22cd9f90cf9f03a47dd794dd59e84cfa39887c852dd9db59eb3711569"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineStream.java",
+    "bytes": 1004,
+    "sha256": "bebf6f063e4acd2e8677e666cad2bdec3966cad5199a19997316a1083449b623"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineTransducerModelConfig.java",
+    "bytes": 1310,
+    "sha256": "2ec2397328e934bf0a4be0af104c71d104cd9c0d19363341e182702333e150f6"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineTts.java",
+    "bytes": 2166,
+    "sha256": "7c7a52ae5ce58b2fc01f68325b1c6a204de9b2eaf224a1fad540c37a05531371"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineTtsCallback.java",
+    "bytes": 168,
+    "sha256": "25ef9589d8a52f6926c47763c454e16c9634892b483829bf43e98ba40ed6ea2e"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineTtsConfig.java",
+    "bytes": 2082,
+    "sha256": "444953f27598c03f773c5380c2cdd2ef0f7f59b0c24ecd7370e11994191b4761"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineTtsKokoroModelConfig.java",
+    "bytes": 2382,
+    "sha256": "dcebc03f2c5f8a1519715b96f5c7fbd7348893f2482c7b308c5c35660fa3483b"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineTtsMatchaModelConfig.java",
+    "bytes": 2927,
+    "sha256": "cace861255f0e6de2e186bda4cd960357af6b47a28dbb087f25b60140f78d784"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineTtsModelConfig.java",
+    "bytes": 2332,
+    "sha256": "29541e54114a05e78fdaad9b54e09faa738ef1cf644443e24147a0c99ad0f134"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineTtsVitsModelConfig.java",
+    "bytes": 2879,
+    "sha256": "6a43e2ed0f1f653525726e63fa18b5016ce449ab380417bcdde737920763fb5d"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineWhisperModelConfig.java",
+    "bytes": 2042,
+    "sha256": "46b37a3737b553fd16de7c45f14a4e3192bdb5598479aa497cb42121776da1b1"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OfflineZipformerAudioTaggingModelConfig.java",
+    "bytes": 746,
+    "sha256": "bff2c3ad0c3d32a815578119cb37c5357811f0f396d0dbbdb0d7f905fafc36a5"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OnlineCtcFstDecoderConfig.java",
+    "bytes": 1000,
+    "sha256": "b64d757ed878df5e7428566f58349b783e2b277b51ce946706e5081e20a0b24a"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OnlineLMConfig.java",
+    "bytes": 1003,
+    "sha256": "35f16751893e18b97aafe443372522af4393f627f712e39604f4a814aa6c8272"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OnlineModelConfig.java",
+    "bytes": 4519,
+    "sha256": "114bbda3740b8bb8fc22c65a51231399bee9e3e5d9e7e229ba3e9cbaeffd23a0"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OnlineNeMoCtcModelConfig.java",
+    "bytes": 686,
+    "sha256": "064336b53824cea4d2b9774587fc80e486bbd8e24d824c8922c45565dbba2860"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OnlineParaformerModelConfig.java",
+    "bytes": 1097,
+    "sha256": "3ab4a46436d9dddb71793c9dc52d81d1cbce6ba27de3e160674c5a391a30e43a"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OnlinePunctuation.java",
+    "bytes": 873,
+    "sha256": "e5ab7f81e4ec4763697f95603485b63045a0475cbb0d8398e06a0df5abbbc7a5"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OnlinePunctuationConfig.java",
+    "bytes": 815,
+    "sha256": "901404bdd7ed40cd033c6595604c1c956a207b4cd77f81478f5888e209e39312"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OnlinePunctuationModelConfig.java",
+    "bytes": 1770,
+    "sha256": "5c7a0bd143142292c9c55d166be41f495bd9472e1f4eb19076137e3e7f585133"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OnlineRecognizer.java",
+    "bytes": 1990,
+    "sha256": "21075482dc33593ee511ef27ad12d9bdfa4ed5a2e9c5104a3c05d78923313239"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OnlineRecognizerConfig.java",
+    "bytes": 4574,
+    "sha256": "e7f23f7b24ba7cd2f900297e74d042795f4b071eb7ee0ede573317e62c152dc7"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OnlineRecognizerResult.java",
+    "bytes": 594,
+    "sha256": "e18c1eb963ea3e10f8bf6cb8d2ede71d46d892b7d06e08b6592b65e14851d088"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OnlineStream.java",
+    "bytes": 1215,
+    "sha256": "9a9b6d2392f0e87994c58fb6538f771c10334347f5e6101aee6d6cb40948561e"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OnlineTransducerModelConfig.java",
+    "bytes": 1398,
+    "sha256": "7108a8f31d111e1ebc40dffea020cfc48112f6436c1d1191fd6b8d1c0b614966"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/OnlineZipformer2CtcModelConfig.java",
+    "bytes": 710,
+    "sha256": "a289c724d33c72110ac37552433712ac44c4d3719784f6ddaf83e53c169125f7"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/SileroVadModelConfig.java",
+    "bytes": 2508,
+    "sha256": "74c75ecf9f76e3547d1f4811478d6a7507e8392578fd70a141e2af4e36e87e8f"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/SpeakerEmbeddingExtractor.java",
+    "bytes": 1257,
+    "sha256": "e2cddba234a8cd1a289868967dad92dee1ccc9e8f871cf204781d579d1ee876b"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/SpeakerEmbeddingExtractorConfig.java",
+    "bytes": 1374,
+    "sha256": "09977d97c3e30926b349530fc68182e381a2b4f28d59472bd9eb89d8ead1f9be"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/SpeakerEmbeddingManager.java",
+    "bytes": 1962,
+    "sha256": "3d72a729210abbe8b6b09acb9c080c370a03911d70f1e02bae6e5416c86f1fa2"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/SpeechSegment.java",
+    "bytes": 372,
+    "sha256": "6253393fe6c687dd18534105b6102b1077f825674b5c8e23d05362ff31dbe1e9"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/SpokenLanguageIdentification.java",
+    "bytes": 1560,
+    "sha256": "cd59d3ad5d71e44b7c2b31cf4e4b443e409953c4a4afe3d5be1c52dc0bee3fac"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/SpokenLanguageIdentificationConfig.java",
+    "bytes": 1662,
+    "sha256": "6b3aa2a1f601b779860ae2ef56a37b495e477e333bcfe5b98283b7d0b4a15538"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/SpokenLanguageIdentificationWhisperConfig.java",
+    "bytes": 1439,
+    "sha256": "59e4f0e62afd6db3b175d0e547ded2c46b85641a9c7b22c49409d20c1fbfc4bc"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/Vad.java",
+    "bytes": 1679,
+    "sha256": "3175d2cc157027c4cfe50ae7f2c4c563e62864e80b225068ab3672f1b3f3f515"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/VadModelConfig.java",
+    "bytes": 2125,
+    "sha256": "aee2d0bf9fd00576b4e227f2d55c5fd36d7ad7ae40aac00d9223fa44f4bb0dc1"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/WaveReader.java",
+    "bytes": 727,
+    "sha256": "1bbd90b5a2195b9b5904c4ca254e14e88464399a8bc50ef656eaf94c24a81945"
+  },
+  {
+    "path": "sherpa-src/com/k2fsa/sherpa/onnx/WaveWriter.java",
+    "bytes": 422,
+    "sha256": "15b30a768356f1f521fc65702b20a3dbced640c43bdc68530c9ede15c21dbd3c"
+  }
+]

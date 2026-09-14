@@ -1,0 +1,37 @@
+{
+  "sha256": "afd7b3a5c8c506ffb76f28e8e51fbb1774aba7ec2c72c7b0829fb3e1a993ca67",
+  "source_sha256": {
+    "build.py": "1ec92c143f73fe4c2f8e0b62fedc6391a98fb3899320b895a0171ead40c9892c",
+    "patch.py": "491f425ba96ee5189988ec22000f15410cf0a0496e9336c7f38580e39f9b1bd2",
+    "src/com/stand/asr/GigaAsr.java": "42fd22cc3782d898226ab1ccc50a929d1d151b1122dc803eb237f902fb4dcf98",
+    "src/com/stand/bridge/CommandHelp.java": "1ed4d27297548c9412767060bf9bda609165c8ee4f85fc917df171dc06928896",
+    "src/com/stand/bridge/E07Trunk.java": "cd2ae48c1d900ea7fcfa78490949178ae2869b2d4e29a056367f55aea422133e",
+    "src/com/stand/bridge/MicMix.java": "fe29bbba7d6d697a63f9d9224331ede96043ccd5ac4304df456bc092936169ab",
+    "src/com/stand/bridge/Ru2Zh.java": "3dc5bf586aa263a0a3702bf9feef28e9009d9e742b85f5e53047bc608855b3ed",
+    "src/com/stand/bridge/RuBridge.java": "cde87fce1d82b2528c08d2f4be282bba1ca926683831d688ca5b802b7edef9b8",
+    "src/com/stand/bridge/SePcm.java": "9a54f5af2c295c73e0e4d290c1522eee6dd4b999814d830f39ffb3b2772fe38f",
+    "src/com/stand/bridge/SeProbe.java": "3e78651223cb569b0f525d6b0830fe9d2a1ae1b89f766f5e815baac101a0a13e",
+    "src/com/stand/bridge/StandNluReceiver.java": "669a7b20d857f4c20a2153d4b7a6e47bb2360fcfc48a6c25943b6811f0be8ac7",
+    "src/com/stand/bridge/Translate.java": "2628f8f9619eb8ee457ce257550a216ecdce9c6e1ec67b0ce8f01da58aed4377",
+    "src/com/stand/bridge/Utterance.java": "d929918c79296ff08cce9fbbf8456d3a43505bd9f66e4896de6a7bc7d591d663",
+    "src/com/stand/tts/PiperCaTts.java": "c2efa1c29291ba72cc6278b7fadcaf00f6d47adec32f4b556e801691fdce254a",
+    "src/com/stand/tts/TeraTts.java": "837d3d621e986b5df86018da64cd22425a23ba228085314f5951b63074701473",
+    "src/com/stand/tts/WakeChime.java": "fc44b291f46040129c50080d2abbc376ac846943854ce077150e52860aff439c",
+    "src/com/stand/tts/tera/RuAccentDict.java": "8a1bdd549dca6972feb5bd48972fbedde0277b70fe70f9f4e2670a738ee94c43",
+    "src/com/stand/tts/tera/TeraAccents.java": "b301a518f3a3a4295b2de0b11c4898928cc0d21c648f7c3ad5ed2edae7448c32",
+    "src/com/stand/tts/tera/TeraNumbers.java": "4d3b649485237e274502d4b7ca871315f2e2e36c112b83f8287cfa92342bf6d0",
+    "src/com/stand/tts/tera/TeraTTS.java": "a9a86f636ca52d132fcff4d4beb6c3666a01897734efc4d4470a1cd502452984"
+  },
+  "changed_stock_classes": [
+    "third/ThirdUtils.smali",
+    "application/VoiceApp.smali",
+    "sr/SrSession.smali",
+    "se/SeSession$2.smali",
+    "arbitration/ArbitrationManager.smali",
+    "tts/TtsPlayer.smali",
+    "tts/TtsPlayer2.smali"
+  ],
+  "manifest_and_version_unchanged": true,
+  "duplicate_dex_classes": 0,
+  "publication_note": "All src/**/*.java and patch.py are byte-identical to the installed afd7b3a5 build. build.py and test paths accept external inputs for this standalone directory; build.py hash below refers to the archived original."
+}

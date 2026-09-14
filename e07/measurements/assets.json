@@ -1,0 +1,80 @@
+[
+  {
+    "path": "lib/arm64-v8a/libonnxruntime.so",
+    "bytes": 16035904,
+    "sha256": "26cc1b284cc22f87a8d4c2c2424b091dce3a00d9d3b74113863405d603f048d3",
+    "same_as_e07": true
+  },
+  {
+    "path": "lib/arm64-v8a/libsherpa-onnx-jni.so",
+    "bytes": 4495384,
+    "sha256": "09e9a2f0c71a167a304fd03c1a2b87ccd7af3e38f42838655be5f76965f3bb6a",
+    "same_as_e07": true
+  },
+  {
+    "path": "lib/arm64-v8a/libonnxruntime4j_jni.so",
+    "bytes": 760104,
+    "sha256": "8fc7e20fba98c5601582ae14c8c7fed194644856fc315d6184ed1776c50d9272",
+    "same_as_e07": true
+  },
+  {
+    "path": "assets/tera/ruaccent.bin",
+    "bytes": 2097138,
+    "sha256": "b26662a8e678a482bf240c3acd0a870753f34626acd3fc2947b5526b372e1369",
+    "same_as_e07": true
+  },
+  {
+    "path": "assets/tera/models/duration_predictor.onnx",
+    "bytes": 1572411,
+    "sha256": "15248b4751493fe48543f01164cd9b74d103b4483c63367a01c344442ebf03d8",
+    "same_as_e07": true
+  },
+  {
+    "path": "assets/tera/models/sampler_distilled_cfg3_4step.onnx",
+    "bytes": 256417636,
+    "sha256": "0407903f36d7dbe09b37e8547d6919ad14d7b5a84ee890ba463645d81302b273",
+    "same_as_e07": false
+  },
+  {
+    "path": "assets/tera/models/text_encoder.onnx",
+    "bytes": 27910305,
+    "sha256": "d59b7911fe9e465988f26bedbf7c34ef9b2c5588d9b0da5f86d41340a3324a12",
+    "same_as_e07": true
+  },
+  {
+    "path": "assets/tera/models/vocoder.onnx",
+    "bytes": 101416199,
+    "sha256": "d4e4cf9a9b9de8cca28f309c4cb7735327322b5a764ba61dfc3706c3c7942c07",
+    "same_as_e07": true
+  },
+  {
+    "path": "assets/tera/styles/ru_f2/style_dp.bin",
+    "bytes": 512,
+    "sha256": "e634e3cff9ae04ff107d6d094d820bb0863d74fd00cff1483c70859c5e54480c",
+    "same_as_e07": true
+  },
+  {
+    "path": "assets/tera/styles/ru_f2/style_ttl.bin",
+    "bytes": 51200,
+    "sha256": "5a5a72234487075ca26383e04e8d1e28259f968becb9e981ec0c2bbfed2356d8",
+    "same_as_e07": true
+  },
+  {
+    "path": "assets/tera/unicode_indexer.json",
+    "bytes": 262171,
+    "sha256": "c1ed0c0804b836bd0e38170ae7b5b00647d818c5f659fcf21fa0feea950aa04d",
+    "same_as_e07": true
+  },
+  {
+    "path": "assets/gigaam/model.int8.onnx",
+    "bytes": 224721476,
+    "sha256": "f86ebfa0429ced91be6054fc344827e9c6c2572f3c318416cd974b06f66437ec",
+    "same_as_e07": true
+  },
+  {
+    "path": "assets/gigaam/tokens.txt",
+    "bytes": 196,
+    "sha256": "17cc514451bcceac9c280068c71502f8448f99e9fb1456b8d0761651fd0392f2",
+    "same_as_e07": true
+  }
+]
