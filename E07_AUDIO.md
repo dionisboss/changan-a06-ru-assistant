@@ -1,5 +1,10 @@
 # E07: штатный микрофон для русского ASR
 
+Полный исходный порт вынесен в отдельную ветку
+[`dionisboss:e07/native-se`](https://github.com/dionisboss/changan-a06-ru-assistant/tree/e07/native-se/e07):
+точные Java-исходники рабочей сборки, smali-патчер, сборщик, проверки и
+[сравнение STT/TTS с A06](https://github.com/dionisboss/changan-a06-ru-assistant/blob/e07/native-se/e07/AUDIO_COMPARISON.md).
+
 На E07 подтверждён путь **штатный захват → SE → GigaAM → русский маппер → штатный
 обработчик → русский TTS** без отдельного `AudioRecord` в русском распознавателе.
 Ниже — контракт и результат отдельного порта, проверенного 14.09.2026. Этот документ
